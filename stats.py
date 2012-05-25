@@ -130,7 +130,7 @@ def cleanup_volunteers(repos, whitelist):
 
 
 def construct_dataset(settings, repos, metric, output, gerrit):
-    output=output.split('\n')
+    output = output.split('\n')
     for obs in output:
         try:
             obs= json.loads(obs)

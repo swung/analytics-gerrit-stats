@@ -39,17 +39,28 @@ class Settings(object):
     a WMF email address and hence will be classified as volunteer.
     '''
     def __init__(self, settings):
-        self.queries = {'only+1':'-- CodeReview+1 -CodeReview+2 -CodeReview-1 -CodeReview-2',
-                        'no_review':'-- -CodeReview+1 -CodeReview-1 -CodeReview+2 -CodeReview-2',
-                        }
-        self.whitelist=set(['niklas.laxstrom@gmail.com','roan.kattouw@gmail.com','maxsem.wiki@gmail.com','s.mazeland@xs4all.nl','jeroendedauw@gmail.com','mediawiki@danielfriesen.name','jdlrobson@gmail.com','hashar@free.fr'])
+        self.queries = {
+            'only+1'    : '-- CodeReview+1 -CodeReview+2 -CodeReview-1 -CodeReview-2',
+            'no_review' : '-- -CodeReview+1 -CodeReview-1 -CodeReview+2 -CodeReview-2',
+        }
+        self.whitelist = set([
+            'niklas.laxstrom@gmail.com',
+            'roan.kattouw@gmail.com',
+            'maxsem.wiki@gmail.com',
+            's.mazeland@xs4all.nl',
+            'jeroendedauw@gmail.com',
+            'mediawiki@danielfriesen.name',
+            'jdlrobson@gmail.com',
+            'hashar@free.fr'
+        ])
         self.ignore_repos = ['test']
         self.metrics =  {}
-        self.parents = ['mediawiki/core',
-                        'mediawiki/extensions',
-                        'operations',
-                        'analytics',
-                        ]
+        self.parents = [
+            'mediawiki/core',
+            'mediawiki/extensions',
+            'operations',
+            'analytics',
+        ]
         
         for name, query in self.queries.iteritems():
             self.metrics[name] = Metric(name, query, settings)
