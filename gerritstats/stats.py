@@ -88,7 +88,7 @@ def run_gerrit_query(query):
 
 def create_dataset(repos, gerrit):
     for key, repo in repos.iteritems():
-        fh = open('%s%s' % (repo.directory, repo.filename), repo.filemode)	
+        fh = open(repo.full_path, repo.filemode)	
         if repo.filemode == 'w':
             write_heading(fh, repo)
         output_results(fh, repo.today.month,'-',repo.today.day,'-',repo.today.year,',',repo.name,',')

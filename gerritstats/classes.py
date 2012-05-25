@@ -93,8 +93,9 @@ class Repo(object):
         self.dataset = {}
         self.filename = ('%s.csv' % (self.determine_filename()))
         self.directory = self.determine_directory()
-        self.create_path()
+        self.full_path = os.path.join(self.directory, self.filename)
         self.filemode = self.determine_filemode()
+        self.create_path()
         
         self.today = datetime.today()
         self.email = {}
@@ -128,7 +129,7 @@ class Repo(object):
         return os.path.basename(self.name)
     
     def determine_filemode(self):
-        if os.path.isfile('%s/%s' % (self.gerrit.data_location, self.filename)) == False:
+        if os.path.isfile(self.full_path) == False:
             return 'w'
         else:
             return 'a'
