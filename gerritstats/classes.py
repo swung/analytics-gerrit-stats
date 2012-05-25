@@ -88,11 +88,13 @@ class Repo(object):
     
     def __init__(self, name, settings, gerrit):
         self.touched = False
+        self.gerrit = gerrit
         self.name = name
         self.dataset = {}
-        self.create_path(self.name, gerrit)
-        self.filename = ('%s.csv' % (self.determine_filename(self.name)))
-        self.filemode = self.determine_filemode(self.filename, gerrit)
+        self.filename = ('%s.csv' % (self.determine_filename()))
+        self.directory = self.determine_directory()
+        self.create_path()
+        self.filemode = self.determine_filemode()
         
         self.today = datetime.today()
         self.email = {}
@@ -111,22 +113,22 @@ class Repo(object):
     def __str__(self):
         return self.name
     
-    def create_path(self, filename, gerrit):
-        print filename
-        dir= os.path.dirname(filename)
-        if dir != '':
-            dir = os.path.join(gerrit.data_location, dir)
+    def determine_directory(self):
+        return os.path.join(self.gerrit.data_location, self.name)
+
+    def create_path(self):
+        if self.directory != '':
             try:
-                os.makedirs(dir)
-                print 'Creating %s...' % dir
+                os.makedirs(self.directory)
+                print 'Creating %s...' % self.directory
             except OSError:
                 pass
     
-    def determine_filename(self, filename):
-        return os.path.basename(filename)
+    def determine_filename(self):
+        return os.path.basename(self.name)
     
-    def determine_filemode(self, filename, settings):
-        if os.path.isfile('%s/%s' % (settings.data_location, filename)) == False:
+    def determine_filemode(self):
+        if os.path.isfile('%s/%s' % (self.gerrit.data_location, self.filename)) == False:
             return 'w'
         else:
             return 'a'

@@ -64,8 +64,6 @@ def output_results(fh, *args):
 
 def write_heading(fh, repo):
     output_results(fh, 'data',',','repository',',')
-    #fh.write('%s,%s,' % ('date', 'repository'))
-    #sys.stdout.write('%s,%s,' % ('date', 'repository'))
     for metric_counter, (name, metric) in enumerate(repo.dataset.iteritems()):
         headings = metric.keys()
         for counter, heading in enumerate(headings):
@@ -73,8 +71,6 @@ def write_heading(fh, repo):
                 delim = set_delimiter(headings, counter)
             else:
                 delim = ','
-            #fh.write('%s_%s%s' % (name, heading, delim))
-            #sys.stdout.write('%s_%s%s' % (name, heading, delim))
             output_results(fh, name,'_', heading, delim)
     fh.write('\n')
     sys.stdout.write('\n')
@@ -92,11 +88,9 @@ def run_gerrit_query(query):
 
 def create_dataset(repos, gerrit):
     for key, repo in repos.iteritems():
-        fh = open('%s/%s' % (gerrit.data_location, repo.filename), repo.filemode)
+        fh = open('%s%s' % (repo.directory, repo.filename), repo.filemode)	
         if repo.filemode == 'w':
             write_heading(fh, repo)
-        #sys.stdout.write('%s-%s-%s,%s,' % (repo.today.month,repo.today.day,repo.today.year, repo.name))
-        #fh.write('%s-%s-%s,%s,' % (repo.today.month,repo.today.day,repo.today.year, repo.name))
         output_results(fh, repo.today.month,'-',repo.today.day,'-',repo.today.year,',',repo.name,',')
         print_dict(repo, fh)
         sys.stdout.write('\n*****************\n')
@@ -115,7 +109,6 @@ def print_dict(repo, fh, ident = '', braces=1):
                 delim = set_delimiter(fields, counter)
             else:
                 delim = ','
-            #print delim
             sys.stdout.write('%s%s' % (dataset[metric][field], delim))
             fh.write('%s%s' % (dataset[metric][field], delim))
 
@@ -135,7 +128,8 @@ def construct_dataset(settings, repos, metric, output, gerrit):
         try:
             obs= json.loads(obs)
         except ValueError, e:
-            print e
+            pass
+            #print obs,e
         
         if isinstance(obs, dict) and 'rowCount' not in obs:
             try:
