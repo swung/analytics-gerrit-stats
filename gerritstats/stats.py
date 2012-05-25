@@ -168,7 +168,7 @@ def construct_dataset(settings, repos, metric, output, gerrit):
 def main():
     gerrit = Gerrit()
     settings = Settings(gerrit)
-    print 'Fetching list of all gerrit repositories...'
+    print 'Fetching list of all gerrit repositories...\n'
     repos = create_repo_set(gerrit, settings)
     
     for metric in settings.metrics.itervalues():
