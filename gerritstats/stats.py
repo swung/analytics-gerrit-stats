@@ -91,7 +91,7 @@ def create_dataset(repos, gerrit):
         fh = open(repo.full_path, repo.filemode)	
         if repo.filemode == 'w':
             write_heading(fh, repo)
-        output_results(fh, repo.today.month,'-',repo.today.day,'-',repo.today.year,',',repo.name,',')
+        output_results(fh, repo.today.strftime("%Y-%m-%d"),',',repo.name,',')
         print_dict(repo, fh)
         sys.stdout.write('\n*****************\n')
         sys.stdout.write('\n')
