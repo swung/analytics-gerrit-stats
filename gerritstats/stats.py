@@ -24,7 +24,7 @@ import sys
 import os
 from datetime import datetime
 
-from classes import Gerrit, Settings, Metric, Repo
+from classes import Gerrit, Settings, Metric, Repo, YamlConfig
 
 def create_repo_set(gerrit, settings):
     repos = {}
@@ -62,6 +62,7 @@ def output_results(fh, *args):
     fh.write(output)
     sys.stdout.write(output)
 
+
 def write_heading(fh, repo):
     output_results(fh, 'data',',','repository',',')
     for metric_counter, (name, metric) in enumerate(repo.dataset.iteritems()):
@@ -86,8 +87,10 @@ def run_gerrit_query(query):
     return output
 
 
-def create_dataset(repos, gerrit):
+def create_dataset(repos, gerrit, settings):
     for key, repo in repos.iteritems():
+        yaml = YamlConfig(settings, repo)
+        yaml.write_file()
         fh = open(repo.full_path, repo.filemode)	
         if repo.filemode == 'w':
             write_heading(fh, repo)
@@ -157,6 +160,7 @@ def construct_dataset(settings, repos, metric, output, gerrit):
                 repo.dataset[metric]['volunteer'] +=1
                 repo.email['volunteer'].add(email)
             repo.touched = True
+            
 
 
 def main():
@@ -166,15 +170,14 @@ def main():
     repos = create_repo_set(gerrit, settings)
     
     for metric in settings.metrics.itervalues():
-        #query = 'ssh -p %s %s gerrit query --format=%s %s' % (gerrit.port, gerrit.host, gerrit.format, question)
-        output = run_gerrit_query(metric.query)
         print 'Running %s' % metric.query
+        output = run_gerrit_query(metric.query)
         construct_dataset(settings, repos, metric.name, output, gerrit)
     
     print 'Fixing miscategorization of volunteer engineers...'
     repos = cleanup_volunteers(repos, settings.whitelist)
     print 'Creating datasets...'
-    create_dataset(repos, gerrit)
+    create_dataset(repos, gerrit, settings)
 
 
 if __name__== '__main__':

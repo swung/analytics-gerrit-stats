@@ -21,6 +21,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import os
 from datetime import datetime
+from cStringIO import StringIO
 
 class Metric(object):
     '''
@@ -67,6 +68,9 @@ class Settings(object):
     
     def __str__(self):
         return 'Metrics container object'
+    
+    def get_measures(self):
+        return self.queries.keys()
 
 
 class Gerrit(object):
@@ -110,10 +114,21 @@ class Repo(object):
             self.dataset[metric]['volunteer'] = 0
             self.dataset[metric]['total'] = 0
             self.num_metrics +=1
+        
+        self.labels = self.set_labels(settings)
     
     def __str__(self):
         return self.name
     
+    def set_labels(self, settings):
+        labels = []
+        for metric in settings.metrics:
+            headings = self.dataset[metric]
+            headings = ['%s_%s' % (metric, heading) for heading in headings]
+            labels.extend(headings)
+        return labels
+            
+
     def determine_directory(self):
         return os.path.join(self.gerrit.data_location, self.name)
 
@@ -134,3 +149,67 @@ class Repo(object):
         else:
             return 'a'
 
+
+class YamlConfig(object):
+    def __init__(self, settings, repo):
+        self.format = 'csv'
+        self.repo = repo
+        self.dataset_id = repo.name
+        self.name = self.set_description(settings, repo)
+        self.shortname = 'Codereview stats for %s' % repo.name
+        self.url = self.set_url()
+        self.buffer = StringIO()
+    
+    def set_url(self):
+        return '/data/datasources/gerrit-stats/%s.%s' % (self.dataset_id, self.format)
+    
+    def set_description(self, settings, repo):
+        measures = ','.join(settings.get_measures())
+        return '%s metrics for %s repo' % (measures, repo.name)
+    
+    def set_metadata(self):
+        self.buffer.write('id: %s\n' % self.dataset_id)
+        self.buffer.write('name: %s\n' % self.name)
+        self.buffer.write('shortName: %s\n' % self.shortname)
+        self.buffer.write('format: %s\n' % self.format)
+        self.buffer.write('url: %s\n' % self.url)
+        self.buffer.write('\n')
+    
+    def set_timespan(self):
+        today = datetime.today()
+        self.buffer.write('timespan:\n')
+        self.buffer.write('    end: %s/%s/%s\n' % (today.year, today.month, today.day))
+        self.buffer.write('    start: 2012/6/12\n')
+        self.buffer.write('    step: 1d\n')
+        self.buffer.write('\n')
+        
+    def set_columns(self, labels):
+        num_labels = len(labels)
+        self.buffer.write('columns:\n')
+        self.buffer.write('    labels:\n')
+        self.buffer.write('    - Date\n')
+        for label in labels:
+            self.buffer.write('    - %s\n' % label)
+        self.buffer.write('    types:\n')
+        self.buffer.write('    - date\n')
+        for x in xrange(num_labels):
+            self.buffer.write('    - int\n')
+        self.buffer.write('\n')
+    
+    def set_charttype(self):
+        self.buffer.write('chart:\n')
+        self.buffer.write('    chartType: dygraphs\n')
+    
+    def write_file(self):
+        self.set_metadata()
+        self.set_timespan()
+        self.set_columns(self.repo.labels)
+        self.set_charttype()
+        
+        filename = '%s.yaml' % (self.repo.determine_filename())
+        print self.repo.directory
+        full_path = os.path.join(self.repo.directory, filename)
+        print 'filename: %s' % filename
+        fh = open(full_path, 'w')
+        fh.write(self.buffer.getvalue())
+        fh.close()
