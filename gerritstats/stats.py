@@ -91,7 +91,7 @@ def create_dataset(repos, gerrit, settings):
     for key, repo in repos.iteritems():
         yaml = YamlConfig(settings, repo)
         yaml.write_file()
-        fh = open(repo.full_path, repo.filemode)	
+        fh = open(repo.full_csv_path, repo.filemode)	
         if repo.filemode == 'w':
             write_heading(fh, repo)
         output_results(fh, repo.today.month,'-',repo.today.day,'-',repo.today.year,',',repo.name,',')
@@ -164,7 +164,8 @@ def construct_dataset(settings, repos, metric, output, gerrit):
 
 def parse_commandline():
     parser = argparse.ArgumentParser(description='Process some integers.')
-    parser.add_argument('--output', help='Specify the absolute path to store the gerrit-stats datasets.')
+    parser.add_argument('--yaml', help='Specify the absolute path to store the gerrit-stats yaml configuration files.', required=True)
+    parser.add_argument('--csv', help='Specify the absolute path to store the gerrit-stats csv datasets.', required=True)
     return parser.parse_args()
     
 

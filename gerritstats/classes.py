@@ -20,6 +20,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
 import os
+import sys
 from datetime import datetime
 from cStringIO import StringIO
 
@@ -79,14 +80,23 @@ class Gerrit(object):
     sensible defaults.
     '''
     def __init__(self, args):
-        self.data_location = args.output
+        self.yaml_location = args.yaml
+        self.csv_location = args.csv
         self.host = 'gerrit.wikimedia.org'
         self.port = 29418
         self.format = 'JSON'
+        self.is_valid_path()
     
     def __str__(self):
         return 'Codereview settings object.'
-
+    
+    def is_valid_path(self):
+        if os.path.isabs(self.csv_location) == False:
+            raise Exception("Please specify an absolute path.")
+            sys.exit(-1) 
+        if os.path.isabs(self.yaml_location) == False:
+            raise Exception("Please specify an absolute path.")
+            sys.exit(-1)
 
 class Repo(object):
     
@@ -96,8 +106,10 @@ class Repo(object):
         self.name = name
         self.dataset = {}
         self.filename = ('%s.csv' % (self.determine_filename()))
-        self.directory = self.determine_directory()
-        self.full_path = os.path.join(self.directory, self.filename)
+        self.csv_directory = self.determine_directory(gerrit.csv_location)
+        self.yaml_directory = self.determine_directory(gerrit.yaml_location)
+        self.full_csv_path = os.path.join(self.csv_directory, self.filename)
+        self.full_yaml_path = os.path.join(self.yaml_directory, self.filename)
         self.filemode = self.determine_filemode()
         self.create_path()
         
@@ -129,22 +141,24 @@ class Repo(object):
         return labels
             
 
-    def determine_directory(self):
-        return os.path.join(self.gerrit.data_location, self.name)
+    def determine_directory(self, location):
+        return os.path.join(location, self.name)
 
     def create_path(self):
-        if self.directory != '':
-            try:
-                os.makedirs(self.directory)
-                print 'Creating %s...' % self.directory
-            except OSError:
-                pass
+        folders = [self.yaml_directory,self.csv_directory]
+        for folder in folders:
+            if folder != '':
+                try:
+                    os.makedirs(folder)
+                    print 'Creating %s...' % folder
+                except OSError:
+                    pass
     
     def determine_filename(self):
         return os.path.basename(self.name)
     
     def determine_filemode(self):
-        if os.path.isfile(self.full_path) == False:
+        if os.path.isfile(self.full_csv_path) == False:
             return 'w'
         else:
             return 'a'
@@ -207,7 +221,7 @@ class YamlConfig(object):
         self.set_charttype()
         
         filename = '%s.yaml' % (self.repo.determine_filename())
-        full_path = os.path.join(self.repo.directory, filename)
+        full_path = os.path.join(self.repo.yaml_directory, filename)
         fh = open(full_path, 'w')
         fh.write(self.buffer.getvalue())
         fh.close()
