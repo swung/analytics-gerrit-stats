@@ -21,7 +21,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 import subprocess
 import json
 import sys
-import os
+import argparse
 from datetime import datetime
 
 from classes import Gerrit, Settings, Metric, Repo, YamlConfig
@@ -162,9 +162,15 @@ def construct_dataset(settings, repos, metric, output, gerrit):
             repo.touched = True
             
 
+def parse_commandline():
+    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser.add_argument('--output', help='Specify the absolute path to store the gerrit-stats datasets.')
+    return parser.parse_args()
+    
 
 def main():
-    gerrit = Gerrit()
+    args = parse_commandline()
+    gerrit = Gerrit(args)
     settings = Settings(gerrit)
     print 'Fetching list of all gerrit repositories...\n'
     repos = create_repo_set(gerrit, settings)

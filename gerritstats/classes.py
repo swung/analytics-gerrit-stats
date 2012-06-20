@@ -78,8 +78,8 @@ class Gerrit(object):
     This object contains the setings to interact with the gerrit server, nothing fancy these are just
     sensible defaults.
     '''
-    def __init__(self):
-        self.data_location = 'data'
+    def __init__(self, args):
+        self.data_location = args.output
         self.host = 'gerrit.wikimedia.org'
         self.port = 29418
         self.format = 'JSON'
@@ -207,9 +207,7 @@ class YamlConfig(object):
         self.set_charttype()
         
         filename = '%s.yaml' % (self.repo.determine_filename())
-        print self.repo.directory
         full_path = os.path.join(self.repo.directory, filename)
-        print 'filename: %s' % filename
         fh = open(full_path, 'w')
         fh.write(self.buffer.getvalue())
         fh.close()
