@@ -18,173 +18,165 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
-import subprocess
+
 import json
-import sys
 import argparse
-from datetime import datetime
 
-from classes import Gerrit, Settings, Metric, Repo, YamlConfig
+from gerrit import Gerrit
 
-def create_repo_set(gerrit, settings):
-    repos = {}
-    output = run_gerrit_query('ssh -p 29418 gerrit.wikimedia.org gerrit ls-projects')
-    output = output.split('\n')
-    for repo in output:
-        repo = repo.strip()
-        if len(repo) > 1:
-            tests = [repo.find(ignore) == -1 for ignore in settings.ignore_repos]
-            if all(tests):
-                rp = Repo(repo, settings, gerrit)
-                repos[rp.name] = rp
-    return repos
+#def cleanup_volunteers(repos, whitelist):
+#    for repo in repos.values():
+#        for ws in whitelist:
+#            if ws in repo.email['volunteer']:
+#                repo.email['wikimedian'].add(ws)
+#                repo.email['email']['volunteer'].remove(ws)
+#    return repos
 
 
-def is_wikimedian(email, whitelist):
-    if email in whitelist:
-        return True
-    if email.endswith('wikimedia.org'):
-        return True
-    else:
-        return False
+def merge(d1, d2, helper=lambda x,y:x+y):
+    """
+    Inspired from: http://stackoverflow.com/a/44512/55281
+    Merges two dictionaries, non-destructively, combining 
+    values on duplicate keys as defined by the optional merge
+    function.  The default behavior replaces the values in d1
+    with corresponding values in d2.  (There is no other generally
+    applicable merge strategy, but often you'll have homogeneous 
+    types in your dicts, so specifying a merge technique can be 
+    valuable.)
 
+    Examples:
 
-def set_delimiter(fields, counter):
-    num_fields = len(fields)
-    if num_fields-counter != 1:
-        return ','
-    else:
-        return ''
+    >>> d1
+    {'a': 1, 'c': 3, 'b': 2}
+    >>> merge(d1, d1)
+    {'a': 1, 'c': 3, 'b': 2}
+    >>> merge(d1, d1, lambda x,y: x+y)
+    {'a': 2, 'c': 6, 'b': 4}
 
-def output_results(fh, *args):
-    args = [str(arg) for arg in args]
-    output = ''.join(args)
-    fh.write(output)
-    sys.stdout.write(output)
-
-
-def write_heading(fh, repo):
-    output_results(fh, 'data',',','repository',',')
-    for metric_counter, (name, metric) in enumerate(repo.dataset.iteritems()):
-        headings = metric.keys()
-        for counter, heading in enumerate(headings):
-            if metric_counter +1 == repo.num_metrics:
-                delim = set_delimiter(headings, counter)
+    """
+    result = dict(d1)
+    for k,v in d2.iteritems():
+        if type(v) == dict:
+            if k in result:
+                result[k] = merge(v, result[k])
             else:
-                delim = ','
-            output_results(fh, name,'_', heading, delim)
-    fh.write('\n')
-    sys.stdout.write('\n')
-
-
-def construct_timestamp(epoch):
-    return datetime.fromtimestamp(epoch)
-
-
-def run_gerrit_query(query):
-    query = query.split(' ')
-    output = subprocess.Popen(query, shell=False, stdout=subprocess.PIPE).communicate()[0]
-    return output
-
-
-def create_dataset(repos, gerrit, settings):
-    for key, repo in repos.iteritems():
-        yaml = YamlConfig(settings, repo)
-        yaml.write_file()
-        fh = open(repo.full_csv_path, repo.filemode)	
-        if repo.filemode == 'w':
-            write_heading(fh, repo)
-        output_results(fh, repo.today.strftime("%Y-%m-%d"),',',repo.name,',')
-        print_dict(repo, fh)
-        sys.stdout.write('\n*****************\n')
-        sys.stdout.write('\n')
-        fh.write('\n')
-        fh.close()
-
-
-def print_dict(repo, fh, ident = '', braces=1):
-    """ Recursively prints nested dictionaries."""
-    dataset = repo.dataset
-    for metric_counter, metric in enumerate(dataset):
-        fields = dataset[metric].keys()
-        for counter, field in enumerate(fields):
-            if metric_counter +1 == repo.num_metrics:
-                delim = set_delimiter(fields, counter)
+                result[k] = v
+        else:
+            if k in result:
+                result[k] = helper(result[k], v)
             else:
-                delim = ','
-            sys.stdout.write('%s%s' % (dataset[metric][field], delim))
-            fh.write('%s%s' % (dataset[metric][field], delim))
+                result[k] = v
+    return result
 
 
-def cleanup_volunteers(repos, whitelist):
-    for name, repo in repos.iteritems():
-        for ws in whitelist:
-            if ws in repo.email['volunteer']:
-                repo.email['wikimedian'].add(ws)
-                repo.email['email']['volunteer'].remove(ws)
-    return repos
-
-
-def construct_dataset(settings, repos, metric, output, gerrit):
+def parse_json(output):
     output = output.split('\n')
+    data = []
     for obs in output:
         try:
-            obs= json.loads(obs)
+            data.append(json.loads(obs))
         except ValueError, e:
-            pass
-            #print obs,e
-        
-        if isinstance(obs, dict) and 'rowCount' not in obs:
-            try:
-                project = obs['project']
-            except KeyError, e:
-                print e, obs
-            email = obs['owner']['email']
-            repo = repos.get(project, {})
-            if repo == {}:
+            print e
+    return data
+            
+def get_repo(data):
+    if isinstance(data, dict) and 'rowCount' not in data:
+        try:
+            return data['project']
+        except KeyError, e:
+            print e, data
+            return None
+
+def parse_results_no_review(repos, output, query):
+    return repos
+
+def parse_results_only_1(repos, output, query):
+    for obj in output:
+        repo = repos.get(obj.dest_project_name)
+        if repo:
+            if query.debug:
+                pass
+                #print '%s\t%s\t%s' % (repo.name, obj.created_on, obj.value)
+                #if len(repo.dataset_headings.keys()) ==1:
+                #print repo.name, len(repo.dataset_headings.keys()), repo.dataset_headings
+            
+            created = repo.construct_day_key(obj.created_on)
+            if query.recreate and created not in repo.dataset:
                 continue
-            dt = construct_timestamp(obs['createdOn'])
+            #elif not query.recreate:
+            #    repo.dataset.setdefault(created, {})
+            email = repo.gerrit.developers.get(obj.account_id)
+            for day in repo.daterange(obj.created_on, obj.granted_on):
+                day = repo.construct_day_key(day)
+                repo.dataset[day]['touched'] = True
+                repo.dataset[day].setdefault(query.name, {})
+                repo.dataset[day][query.name].setdefault('total', 0)
+                repo.dataset[day][query.name].setdefault('wiki_count', 0)
+                repo.dataset[day][query.name].setdefault('staff_count', 0)
+                if repo.is_wikimedian(email):
+                    repo.dataset[day][query.name]['wiki_count']+=1
+                else:
+                    repo.dataset[day][query.name]['staff_count']+=1
+                repo.dataset[day][query.name]['total']+=1
+            repos[obj.dest_project_name] = repo
+    print 'Done'
+    return repos
+
+def parse_results_daily_commits(repos, output, query):
+    for obj in output:
+        repo = repos.get(obj.dest_project_name)
+        if repo:
+            if query.debug:
+                print '%s\t%s' % (obj.created_on, obj.commits)
+                
+            day = repo.construct_day_key(obj.created_on)
+            if day not in repo.dataset:
+                continue
+            #elif query.recreate:
+            #    repo.dataset.setdefault(day, {})
             
-            # print "REPO: %s" % repo
-            # print "PROJECT: %s" % project
-            # print "METRIC: %s" % metric
-            # print "DATASET: %s" % repo.dataset
-            
-            if repo.dataset[metric]['oldest'] > dt:
-                repo.dataset[metric]['oldest'] = dt
-            repo.dataset[metric]['total'] +=1
-            if is_wikimedian(email, settings.whitelist) == True:
-                repo.dataset[metric]['wikimedian'] +=1
-                repo.email['wikimedian'].add(email)
-            else:
-                repo.dataset[metric]['volunteer'] +=1
-                repo.email['volunteer'].add(email)
-            repo.touched = True
-            
+            repo.dataset[day]['touched'] = True
+            repo.dataset[day][query.name] = {}
+            repo.dataset[day][query.name]['count'] = obj.commits
+            repos[obj.dest_project_name] = repo
+    print 'Done'
+    return repos
+
+def create_aggregate_dataset(repos):
+    for repo in repos.itervalues():
+        if repo.parent:
+            parent_repo = repos.get(repo.parent)
+            if parent_repo:
+                parent_repo.dataset = merge(parent_repo.dataset, repo.dataset)
+                repos[parent_repo.name] = parent_repo
+        
+    return repos
 
 def parse_commandline():
     parser = argparse.ArgumentParser(description='Process some integers.')
-    parser.add_argument('--yaml', help='Specify the absolute path to store the gerrit-stats yaml configuration files.', required=True)
-    parser.add_argument('--csv', help='Specify the absolute path to store the gerrit-stats csv datasets.', required=True)
+    parser.add_argument('--datasets', help='Specify the absolute path to store the gerrit-stats datasets.', required=True)
+    parser.add_argument('--recreate', help='Delete all existing datafiles and datasources and recreate them from scratch. This needs to be done whenever a new metric is added.', action='store_true', default=False)
+    parser.add_argument('--verbose', help='Output intermediate results to see what\'s happening.', action='store_true', default=False)
+    parser.add_argument('--toolkit', help='Specify the visualization library you want to use. Valid choices are: dygraphs and d3.', action='store', default='d3')
     return parser.parse_args()
     
 
 def main():
     args = parse_commandline()
     gerrit = Gerrit(args)
-    settings = Settings(gerrit)
-    print 'Fetching list of all gerrit repositories...\n'
-    repos = create_repo_set(gerrit, settings)
     
-    for metric in settings.metrics.itervalues():
-        print 'Running %s' % metric.query
-        output = run_gerrit_query(metric.query)
-        construct_dataset(settings, repos, metric.name, output, gerrit)
+    for query in gerrit.metrics.itervalues():
+        print 'Running %s' % query.name
+        output = query.launch()
+        handler = globals().get(query.handler)
+        gerrit.repos = handler(gerrit.repos, output, query)
     
-    print 'Fixing miscategorization of volunteer engineers...'
-    repos = cleanup_volunteers(repos, settings.whitelist)
-    print 'Creating datasets...'
-    create_dataset(repos, gerrit, settings)
+    #gerrit.repos = create_aggregate_dataset(gerrit.repos)
+    
+    for repo in gerrit.repos.itervalues():
+        if repo.name == 'mediawiki/core':
+            print 'debug'
+        repo.write_dataset()
 
 
 if __name__== '__main__':
