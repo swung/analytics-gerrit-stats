@@ -20,76 +20,90 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
 import os
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from cStringIO import StringIO
+from itertools import product
+
+try:
+    from collections import OrderedDict
+except:
+    from ordereddict import OrderedDict
 
 from yaml import YamlConfig
 
+
 class Repo(object):
     def __init__(self, name, description, gerrit):
-        self.touched = False
-        self.gerrit = gerrit
         self.description = description
         self.name = name
-        self.dataset = {}
-        self.dataset_headings = {1: {'headings': 'date'}}
-        self.email = {}
-        self.email['wikimedian'] = set()
-        self.email['volunteer'] = set()
-        self.labels = None
+        self.observations = OrderedDict()
+        self.headings = OrderedDict(date='date')
         self.file_contents = StringIO()
-        self.first_commit = datetime(2030, 12, 31)
+        self.first_commit = date(2011,9,7)
+        self.future_date = date(2030,12,31)
+        self.metrics = ['time_first_review', 'time_plus2']
+        self.suffixes = ['total', 'staff', 'volunteer']
         
         self.filename = ('%s.csv' % (self.determine_filename()))
         self.csv_directory = self.determine_directory(gerrit.csv_location)
         self.yaml_directory = self.determine_directory(gerrit.yaml_location)
         self.full_csv_path = os.path.join(self.csv_directory, self.filename)
         self.full_yaml_path = os.path.join(self.yaml_directory, self.filename)
+        
         self.filemode = self.determine_filemode()
         self.create_path()
-        self.today = datetime.today()
-        self.first_commit = datetime(2011,9,7)
-        self.init_dataset()
-        self.parent = self.determine_parent()
+        self.today = date.today()
+        
+        self.parent = self.determine_parent(gerrit)
     
     def __str__(self):
         return self.name
     
-    def determine_parent(self):
-        for parent in self.gerrit.parents:
+    def determine_parent(self, gerrit):
+        for parent in gerrit.parents:
             if self.name.startswith(parent):
                 return parent
         return None
-        
-    def init_dataset(self):
-        self.construct_time_keys()
-        self.register_headings()
     
-    def register_headings(self):
-        for query in self.gerrit.metrics:
-            query = self.gerrit.metrics.get(query)
-            counter = max(self.dataset_headings.keys()) + 1
-            self.dataset_headings[counter] = {}
-            self.dataset_headings[counter]['query'] = query.name
-            self.dataset_headings[counter]['headings'] = query.headings
-
     def create_headings(self):
-        headings = StringIO()
-        max_key = len(self.dataset_headings.keys()) -1
-        for x, query in enumerate(self.dataset_headings.values()):
-            if query['headings'] == 'date':
-                headings.write('%s,' % query['headings']) 
-            else:
-                query_name = query.get('query')  
-                values = query.get('headings')
-                values = ','.join(['%s_%s' % (query_name, value) for value in values])
-                headings.write(values)
-                if x < max_key:
-                    headings.write(',')
-        headings.write('\n')
-        self.labels = headings.getvalue()
-            
-
+        self.metrics.sort()
+        self.suffixes.sort()
+        iterator =  product(self.metrics, self.suffixes)
+        for it in iterator:
+            yield self.merge_keys(it[0], it[1])
+    
+    def merge_keys(self, key1, key2):
+        return '%s_%s' %  (key1, key2)
+   
+    def increment(self, commit):
+        obs = self.observations.get(commit.created_on.date(), Observation(commit.created_on, self))
+        obs.commits+=1
+        self.observations[obs.date] = obs
+        if commit.status == 'A':
+            return
+        
+        if commit.self_review == True:
+            obs.self_review +=1
+        self.observations[obs.date] = obs
+        
+        for metric in self.metrics:
+            start_date = getattr(commit, 'created_on') if metric == 'time_first_review' else getattr(commit, 'time_first_review')
+            end_date = getattr(commit, metric)
+            for date in self.daterange(start_date, end_date):
+                obs = self.observations.get(date.date(), Observation(date.date(), self))
+                for heading in product([metric], self.suffixes):
+                    heading = self.merge_keys(heading[0], heading[1])
+                    #print heading
+                    attr = getattr(obs, heading)
+                    if heading.endswith('staff') and commit.author.staff == True:
+                        attr+=1
+                    elif heading.endswith('volunteer') and commit.author.staff == False:
+                        attr+=1
+                    elif heading.endswith('total'):
+                        attr+=1
+                    setattr(obs, heading, attr)
+                self.observations[obs.date] = obs
+       
     def determine_directory(self, location):
         return os.path.join(location, self.name)
 
@@ -112,9 +126,6 @@ class Repo(object):
         else:
             return 'a'
     
-    def construct_timestamp(self, epoch):
-        return datetime.fromtimestamp(epoch)
-    
     def daterange(self, start_date, end_date):
         for n in range((end_date - start_date).days):
             yield start_date + timedelta(n)
@@ -124,78 +135,90 @@ class Repo(object):
         month = '%s%s' % (0, date.month) if date.month < 10 else date.month
         return '%s-%s-%s' % (date.year, month, day)
     
-    def construct_time_keys(self):
-        today  =  datetime.today()
-        for day in self.daterange(self.first_commit, today):
-            day = self.construct_day_key(day)
-            self.dataset[day] = {}
-            self.dataset[day]['touched'] = False
+    def fill_in_missing_days(self):
+        for date in self.daterange(self.first_commit, self.today):
+            obs = self.observations.get(date, Observation(date, self, False))
+            self.observations[date] = obs
             
-    def is_wikimedian(self, email):
-        if email in self.gerrit.whitelist:
-            return True
-        if email.endswith('wikimedia.org'):
-            return True
-        else:
-            return False
         
     def determine_first_commit_date(self):
-        dates = self.dataset.keys()
+        dates = self.observations.keys()
         dates.sort()
-        dates.reverse()
         for date in dates:
-            touched = self.dataset[date]['touched']
-            if touched:
-                date = datetime.strptime(date, '%Y-%m-%d')
-                if date < self.first_commit:
-                    self.first_commit = date
-    
-    
+            touched = self.observations[date].touched
+            if not touched:
+                if date < self.future_date:
+                    self.first_commit = date + timedelta(days=1)
+            else:
+                break
+
     def prune_observations(self):
         self.determine_first_commit_date()
-        for date_str in self.dataset.keys():
-            date = datetime.strptime(date_str, '%Y-%m-%d')
+        for date in self.observations.keys():
             if date < self.first_commit:
-                del self.dataset[date_str]
+                del self.observations[date]
     
-    def fill_missing_observations(self):
-        for date in self.dataset.keys():
-            for name, query in self.gerrit.metrics.iteritems():
-                if name not in self.dataset[date]:
-                    self.dataset[date].setdefault(name, {})
-                    for heading in query.headings:
-                        self.dataset[date][name].setdefault(heading, 0) 
+    def generate_headings(self):
+        headings = ['date', 'commits', 'self_review']
+        for heading in self.create_headings():
+            headings.append(heading)
+        return ','.join(headings)
             
-
     def create_dataset(self):
-        self.create_headings()
-        self.prune_observations()
-        self.fill_missing_observations()
-        
         if self.filemode == 'w':
-            self.file_contents.write(self.labels)
-            
-        dates = self.dataset.keys()
-        dates.sort()
-        for date in dates:
-            observation = self.dataset.get(date)
-            self.file_contents.write('%s' % date)              
-            max_key = len(observation.keys())
-            for x, counts in enumerate(observation.itervalues()):
-                if type(counts) == dict:
-                    obs = ','.join(['%s' % count for count in counts.values()])
-                    if x < max_key:
-                        self.file_contents.write(',')
-                    self.file_contents.write(obs)
+            headings = self.generate_headings()
+            self.file_contents.write(headings)
             self.file_contents.write('\n')
             
-    def write_dataset(self):
+        dates = self.observations.keys()
+        dates.sort()
+        for date in dates:
+            observation = self.observations.get(date)
+            values = observation.get_values()
+            values.insert(0, date)          
+            values = ','.join(['%s' % value for value in values])
+            self.file_contents.write(values)
+            self.file_contents.write('\n')
+            
+    def write_dataset(self, gerrit):
         self.create_dataset()
         #if dataset is empty then there is no need to write it 
-        if not self.dataset == {}:
-            yaml = YamlConfig(self.gerrit, self)
+        if not self.observations == {}:
+            yaml = YamlConfig(gerrit, self)
             yaml.write_file()
             
             fh = open(self.full_csv_path, self.filemode)
             fh.write(self.file_contents.getvalue())
             fh.close()
+
+class Observation(object):
+    def __init__(self, date, repo, touched=True):
+        self.touched = touched
+        self.date = self.convert_to_date(date)
+        self.commits = 0
+        self.self_review = 0
+        for heading in repo.create_headings():
+            setattr(self, heading, 0)
+    
+    def __str__(self):
+        return '%s:%s' % (self.date, self.commits)
+
+    def __iter__(self):
+        props = self.__dict__
+        props = props.keys()
+        props.sort()
+        for prop in props:
+            if not prop.startswith('__') and prop != 'touched' and prop !='date':
+                yield prop
+    
+    def get_values(self):
+        values = []
+        for prop in self:
+            values.append(getattr(self, prop))
+        return values
+
+    def convert_to_date(self, date):
+        if type(date) == datetime:
+            return date.date()
+        else:
+            return date

@@ -21,9 +21,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import sys
 import subprocess
-from datetime import datetime
 
-from peewee import RawQuery
+#from peewee import RawQuery
 
 
 class Query(object):
@@ -75,23 +74,4 @@ class Query(object):
     
     def run_sql(self):
         return RawQuery(self.model, self.raw)
-
-
-
-
-class Observation(object):
-    def __init__(self, date, wikimedian, volunteer, total):
-        self.date = date
-        self.oldest = datetime(2030,1,1)
-        self.wikimedia = wikimedian
-        self.volunteer = volunteer
-        self.total = total
-
-class Observations(object):
-    def __init__(self):
-        self.obs = {}
-        
-
-
-        
 

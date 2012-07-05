@@ -25,9 +25,10 @@ from datetime import datetime
 class YamlConfig(object):
     def __init__(self, gerrit, repo):
         self.format = 'csv'
+        self.gerrit = gerrit
         self.repo = repo
         self.dataset_id = repo.name
-        self.name = self.set_description(gerrit, repo)
+        self.name = self.set_description(repo)
         self.shortname = 'Codereview stats for %s' % repo.name
         self.url = self.set_url()
         self.buffer = StringIO()
@@ -37,9 +38,8 @@ class YamlConfig(object):
         repo_name = self.dataset_id[pos:]
         return '/data/datasources/gerrit-stats/datafiles/%s/%s.%s' % (self.dataset_id, repo_name, self.format)
     
-    def set_description(self, gerrit, repo):
-        measures = ','.join(gerrit.get_metrics())
-        return '%s metrics for %s repo' % (measures, repo.name)
+    def set_description(self, repo):
+        return '%s' % (repo.name)
     
     def set_metadata(self):
         self.buffer.write('id: %s\n' % self.dataset_id)
@@ -57,30 +57,29 @@ class YamlConfig(object):
         self.buffer.write('    step: 1d\n')
         self.buffer.write('\n')
         
-    def set_columns(self, labels):
-        labels = labels.strip().split(',')
-        labels = [label.capitalize() for label in labels]
-        num_labels = len(labels)
-        print num_labels, labels
+    def set_columns(self, repo):
+        headings = repo.generate_headings()
+        headings = headings.split(',')
+        num_headings = len(headings)
         self.buffer.write('columns:\n')
         self.buffer.write('    labels:\n')
-        #self.buffer.write('    - Date\n')
-        for label in labels:
-            self.buffer.write('    - %s\n' % label)
+        self.buffer.write('    - Date\n')
+        for heading in headings:
+            self.buffer.write('    - %s\n' % heading)
         self.buffer.write('    types:\n')
         self.buffer.write('    - date\n')
-        for x in xrange(num_labels-1):
+        for x in xrange(num_headings-1):
             self.buffer.write('    - int\n')
         self.buffer.write('\n')
     
     def set_charttype(self):
         self.buffer.write('chart:\n')
-        self.buffer.write('    chartType: dygraphs\n')
+        self.buffer.write('    chartType: %s\n' % self.gerrit.toolkit)
     
     def write_file(self):
         self.set_metadata()
         self.set_timespan()
-        self.set_columns(self.repo.labels)
+        self.set_columns(self.repo)
         self.set_charttype()
         
         filename = '%s.yaml' % (self.repo.determine_filename())
