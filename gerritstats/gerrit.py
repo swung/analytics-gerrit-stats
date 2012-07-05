@@ -22,10 +22,18 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 import os
 import shutil
 import sys
+import logging
 
 from query import Query
 from repo import Repo
 
+
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+
+fh = logging.FileHandler('logs/gerrit-stats.txt')
 
 class Gerrit(object):
     '''
@@ -72,6 +80,7 @@ class Gerrit(object):
                 shutil.rmtree('data/datasources')
             except OSError:
                 pass
+            logging.info('Succesfully removed data/datafiles/ and data/datasources/.')
 
     def is_valid_path(self):
         if os.path.isabs(self.csv_location) == False:
@@ -82,23 +91,25 @@ class Gerrit(object):
             sys.exit(-1)
 
     def fetch_repos(self):
-        print 'Fetching list of all Gerrit repositories...'
-        repos_list = self.list_repos() 
+        logging.info('Fetching list of all Gerrit repositories')
+        repos_list = self.list_repos()
+        repos_list = repos_list.strip()
         repos_list = repos_list.split('\n')
         for repo in repos_list:
+            if repo.find('wikimedia/orgchart') > -1:
+                print 'debug'
             try:
                 repo, description = repo.split(' - ')
             except ValueError:
                 description = 'Description is missing.'
-    
+
             repo = repo.strip()
             description = description.strip()
             
-            if len(repo) > 1:
-                tests = [repo.find(ignore_repo) == -1 for ignore_repo in self.ignore_repos]
-                if all(tests):
-                    rp = Repo(repo, description, self)
-                    self.repos[rp.name] = rp
+            tests = [repo.startswith(ignore_repo) == False for ignore_repo in self.ignore_repos]
+            if all(tests):
+                rp = Repo(repo, description, self)
+                self.repos[rp.name] = rp
 
 
     def list_repos(self):

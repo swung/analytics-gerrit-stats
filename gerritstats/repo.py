@@ -20,6 +20,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
 import os
+import logging
+
 from datetime import date, datetime, timedelta
 from cStringIO import StringIO
 from itertools import product
@@ -30,7 +32,14 @@ except:
     from ordereddict import OrderedDict
 
 from yaml import YamlConfig
+from settings import GERRIT_CREATION_DATE
 
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+
+fh = logging.FileHandler('logs/gerrit-stats.txt')
 
 class Repo(object):
     def __init__(self, name, description, gerrit):
@@ -39,7 +48,7 @@ class Repo(object):
         self.observations = OrderedDict()
         self.headings = OrderedDict(date='date')
         self.file_contents = StringIO()
-        self.first_commit = date(2011,9,7)
+        self.first_commit = GERRIT_CREATION_DATE
         self.future_date = date(2030,12,31)
         self.metrics = ['time_first_review', 'time_plus2']
         self.suffixes = ['total', 'staff', 'volunteer']
@@ -113,7 +122,7 @@ class Repo(object):
             if folder != '':
                 try:
                     os.makedirs(folder)
-                    print 'Creating %s...' % folder
+                    logging.info('Created %s'% folder )
                 except OSError:
                     pass
     
@@ -130,10 +139,10 @@ class Repo(object):
         for n in range((end_date - start_date).days):
             yield start_date + timedelta(n)
 
-    def construct_day_key(self, date):
-        day = '%s%s' % (0, date.day) if date.day < 10 else date.day
-        month = '%s%s' % (0, date.month) if date.month < 10 else date.month
-        return '%s-%s-%s' % (date.year, month, day)
+#    def construct_day_key(self, date):
+#        day = '%s%s' % (0, date.day) if date.day < 10 else date.day
+#        month = '%s%s' % (0, date.month) if date.month < 10 else date.month
+#        return '%s-%s-%s' % (date.year, month, day)
     
     def fill_in_missing_days(self):
         for date in self.daterange(self.first_commit, self.today):
@@ -181,9 +190,9 @@ class Repo(object):
             self.file_contents.write('\n')
             
     def write_dataset(self, gerrit):
-        self.create_dataset()
         #if dataset is empty then there is no need to write it 
         if not self.observations == {}:
+            self.create_dataset()
             yaml = YamlConfig(gerrit, self)
             yaml.write_file()
             
@@ -197,6 +206,7 @@ class Observation(object):
         self.date = self.convert_to_date(date)
         self.commits = 0
         self.self_review = 0
+        self.ignore = ['touched', 'date', 'ignore']
         for heading in repo.create_headings():
             setattr(self, heading, 0)
     
@@ -208,8 +218,18 @@ class Observation(object):
         props = props.keys()
         props.sort()
         for prop in props:
-            if not prop.startswith('__') and prop != 'touched' and prop !='date':
+            if not prop.startswith('__') and prop not in self.ignore:
                 yield prop
+    
+    def update(self, key, value):
+        prop = getattr(self, key)
+        prop += value
+        
+    
+    def iteritems(self):
+        for prop in self:
+            value = getattr(self, prop)
+            yield prop, value
     
     def get_values(self):
         values = []

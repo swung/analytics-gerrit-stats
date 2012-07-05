@@ -12,6 +12,15 @@ git clone git@less.ly:gerrit-stats.git
 pip install gerrit-stats
 ```
 
+## TODO
+1. Add mediawiki extensions parent repo
+2. Determine if repo has review enabled
+3. Check gerrit 2.4 compatability
+4. Add checks to detect schema change
+5. This script needs to be puppetized and launched from a cronjob every day at 11:59PM UTC.
+    Andrew, maybe you can have a look at this next week?
+ 6. Add developer-centric measures
+ 7. Add active developers metric 
 
 ## Workflow
 
@@ -37,11 +46,6 @@ This means that it is hard to put these numbers in context.
 
 ### Todo
 
-- This script needs to be puppetized and launched from a cronjob every day at 11:59PM UTC.
-    Andrew, maybe you can have a look at this next week?
-- We need to figure out a way to get total commits per day.
-- Right now each repository has it's own dataset but we need to add functionality in Limn to 
-    make logical groups of datasets where the values are summed.
 
 
 ### Known Issues

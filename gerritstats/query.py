@@ -22,7 +22,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 import sys
 import subprocess
 
-#from peewee import RawQuery
 
 
 class Query(object):
@@ -53,8 +52,6 @@ class Query(object):
     def launch(self):
         if self.method == 'ssh':
             results = self.run_gerrit()
-        elif self.method == 'sql':
-            results = self.run_sql()
         else:
             raise Exception('Format %s is not supported.\n' % (self.format))
         
@@ -72,6 +69,6 @@ class Query(object):
         output = subprocess.Popen(query, shell=False, stdout=subprocess.PIPE).communicate()[0]
         return output
     
-    def run_sql(self):
-        return RawQuery(self.model, self.raw)
+#    def run_sql(self):
+#        return RawQuery(self.model, self.raw)
 

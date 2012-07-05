@@ -19,8 +19,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
-
-from datetime import datetime, date
+from datetime import datetime
 
 try:
     from collections import OrderedDict
@@ -86,8 +85,8 @@ class Commit(object):
     
     def is_self_reviewed(self):
         if self.merged:
-            if not self.merge_review:
-                print self, self.reviews
+#            if not self.merge_review:
+#                print self, self.reviews
             try:
                 if self.owner_account_id == self.merge_review.account_id:
                     return True
@@ -97,23 +96,50 @@ class Commit(object):
     
     def is_all_positive_reviews(self):
         values = [True if review.value > 0 else False for review in self.reviews.itervalues()]
-        if all(values):
+        if all(values) and len(values) > 0:
             self.all_positive_reviews = True
         else:
             self.all_positive_reviews = False
         
     
     def calculate_wait(self):
-        for review in self.reviews.itervalues():
-            if review.value != 2:
-                if review.granted < self.time_first_review:
-                    self.time_first_review = review.granted
-            else:
-                if self.all_positive_reviews == True:
-                    self.time_plus2 = review.granted
-                    self.merge_review = review
+        if self.reviews == {}:
+            if self.status == 'A':
+                # edge case 1
+                # the commit has been abandoned and there are no reviews
+                # then just reset the review times to when the commit was abandoned
+                self.time_first_review = self.last_updated_on
+                self.time_plus2 = self.last_updated_on
+            elif self.status == 'M':
+                # edge case 2
+                # commit has been merged without any reviews.
+                self.time_first_review = self.last_updated_on
+                self.time_plus2 = self.last_updated_on
+            elif self.status == 'd':
+                # edge case 3
+                # ignore draft commits for now
+                self.time_first_review = self.last_updated_on
+                self.time_plus2 = self.last_updated_on
+        else:
+            values = []
+            for review in self.reviews.itervalues():
+                values.append(review.value)
+                if review.value != 2:
+                    if review.granted < self.time_first_review:
+                        self.time_first_review = review.granted
                 else:
-                    self.time_plus2 = self.created_on
+                    if self.all_positive_reviews == True:
+                        self.time_plus2 = review.granted
+                        self.merge_review = review
+                    else:
+                        self.time_plus2 = self.created_on
+            if values != [] and min(values) == 2:
+                # edge case 4
+                # this handles the edge case where there is only a +2
+                # review, in that case the time to first review variable
+                # is set to time_plus2. 
+                self.time_first_review = self.time_plus2
+                        
         
     
 class Review(object):

@@ -22,48 +22,48 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 import json
 import argparse
 import MySQLdb, MySQLdb.cursors
+import cPickle
+import logging
 
+import os.path as path
+from datetime import datetime, date, timedelta
 
 from gerrit import Gerrit
 from commit import Review, Commit
-from repo import Observation
+from settings import settings, GERRIT_CREATION_DATE, approvals_query, changes_query
 
-from datetime import date
-def merge(d1, d2, helper=lambda x,y:x+y):
-    """
-    Inspired from: http://stackoverflow.com/a/44512/55281
-    Merges two dictionaries, non-destructively, combining 
-    values on duplicate keys as defined by the optional merge
-    function.  The default behavior replaces the values in d1
-    with corresponding values in d2.  (There is no other generally
-    applicable merge strategy, but often you'll have homogeneous 
-    types in your dicts, so specifying a merge technique can be 
-    valuable.)
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
 
-    Examples:
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 
-    >>> d1
-    {'a': 1, 'c': 3, 'b': 2}
-    >>> merge(d1, d1)
-    {'a': 1, 'c': 3, 'b': 2}
-    >>> merge(d1, d1, lambda x,y: x+y)
-    {'a': 2, 'c': 6, 'b': 4}
+fh = logging.FileHandler('logs/gerrit-stats.txt')
+fh.setLevel(logging.DEBUG)
+fh.setFormatter(formatter)
+logger.addHandler(fh)
 
-    """
-    result = dict(d1)
-    for k,v in d2.iteritems():
-        if type(v) == dict:
-            if k in result:
-                result[k] = merge(v, result[k])
-            else:
-                result[k] = v
-        else:
-            if k in result:
-                result[k] = helper(result[k], v)
-            else:
-                result[k] = v
-    return result
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+ch.setFormatter(formatter)
+logger.addHandler(ch)
 
+
+def read_last_run():
+    try:
+        fh = open('last_run.txt','r')
+        start_date = datetime.strptime(fh.readline(), '%Y-%m-%d')
+        fh.close()
+    except IOError:
+        start_date = GERRIT_CREATION_DATE
+    return start_date
+
+
+def write_last_run(start_date):
+    filename = 'last_run.txt'
+    fh = open(filename,'w')
+    fh.write('%s-%s-%s' % (start_date.year, start_date.month, start_date.day))
+    fh.close()
+    logging.info('Successfully wrote  %s.' % filename)
 
 def parse_json(output):
     output = output.split('\n')
@@ -74,156 +74,56 @@ def parse_json(output):
         except ValueError, e:
             print e
     return data
-            
-#def get_repo(data):
-#    if isinstance(data, dict) and 'rowCount' not in data:
-#        try:
-#            return data['project']
-#        except KeyError, e:
-#            print e, data
-#            return None
-#
-#def parse_results_no_review(repos, output, query):
-#    return repos
-#
-#def parse_results_only_1(repos, output, query):
-#    for obj in output:
-#        repo = repos.get(obj.dest_project_name)
-#        if repo:
-#            if query.debug:
-#                pass
-#                #print '%s\t%s\t%s' % (repo.name, obj.created_on, obj.value)
-#                #if len(repo.dataset_headings.keys()) ==1:
-#                #print repo.name, len(repo.dataset_headings.keys()), repo.dataset_headings
-#            
-#            created = repo.construct_day_key(obj.created_on)
-#            if query.recreate and created not in repo.dataset:
-#                continue
-#            #elif not query.recreate:
-#            #    repo.dataset.setdefault(created, {})
-#            email = repo.gerrit.developers.get(obj.account_id)
-#            for day in repo.daterange(obj.created_on, obj.granted_on):
-#                day = repo.construct_day_key(day)
-#                repo.dataset[day]['touched'] = True
-#                repo.dataset[day].setdefault(query.name, {})
-#                repo.dataset[day][query.name].setdefault('total', 0)
-#                repo.dataset[day][query.name].setdefault('wiki_count', 0)
-#                repo.dataset[day][query.name].setdefault('staff_count', 0)
-#                if repo.is_wikimedian(email):
-#                    repo.dataset[day][query.name]['wiki_count']+=1
-#                else:
-#                    repo.dataset[day][query.name]['staff_count']+=1
-#                repo.dataset[day][query.name]['total']+=1
-#            repos[obj.dest_project_name] = repo
-#    print 'Done'
-#    return repos
 
-#def parse_results_daily_commits(repos, output, query):
-#    for obj in output:
-#        repo = repos.get(obj.dest_project_name)
-#        if repo:
-#            if query.debug:
-#                print '%s\t%s' % (obj.created_on, obj.commits)
-#                
-#            day = repo.construct_day_key(obj.created_on)
-#            if day not in repo.dataset:
-#                continue
-#            #elif query.recreate:
-#            #    repo.dataset.setdefault(day, {})
-#            
-#            repo.dataset[day]['touched'] = True
-#            repo.dataset[day][query.name] = {}
-#            repo.dataset[day][query.name]['count'] = obj.commits
-#            repos[obj.dest_project_name] = repo
-#    print 'Done'
-#    return repos
+            
+def save(filename, obj):
+    filename = '%s.bin' %  filename
+    fh = open(filename, 'wb')
+    cPickle.dump(obj, fh)
+    fh.close()
+    logging.info('Successfully saved %s.' % filename)
+
+def load(obj):
+    filename = '%s.bin' % obj
+    fh = open(filename, 'rb')
+    obj = cPickle.load(fh)
+    fh.close()
+    logging.info('Successfully loaded %s.' % filename)
+    return obj
+
+
+def merge(parent_repo, repo):
+    for date, obs in repo.observations.iteritems():
+        if date not in parent_repo.observations:
+            parent_repo.observations[date] = obs
+        else:
+            for key, value in obs.iteritems():
+                parent_repo.observations[date].update(key, value)
+    return parent_repo
+        
 
 def create_aggregate_dataset(repos):
-    for repo in repos.itervalues():
+    logging.info('Creating datasets for parent repositories.')
+    for name, repo in repos.iteritems():
         if repo.parent:
             parent_repo = repos.get(repo.parent)
             if parent_repo:
-                parent_repo.dataset = merge(parent_repo.observations, repo.observations)
-                repos[parent_repo.name] = parent_repo
+                repos[parent_repo.name] = merge(parent_repo, repo) 
     return repos
 
 
-def main():
-    args = parse_commandline()
-    gerrit = Gerrit(args)
-    db = MySQLdb.connect(host='localhost', db='reviewdb', passwd='mulder', user='root')
-    cur = db.cursor(MySQLdb.cursors.DictCursor)
-    changes_query = '''
-                    SELECT 
-                        *
-                    FROM
-                        changes
-                    INNER JOIN
-                        accounts
-                    ON
-                        changes.owner_account_id=accounts.account_id
-                    ORDER BY
-                        changes.created_on;
-                    '''
-    
-    approvals_query = '''
-                    SELECT
-                        *
-                    FROM 
-                        patch_set_approvals
-                    INNER JOIN
-                        accounts
-                    ON 
-                        patch_set_approvals.account_id=accounts.account_id
-                    ORDER BY
-                        patch_set_approvals.granted;
-                    '''
+def load_previous_results(start_date):
+    commits = {}
+    if start_date == GERRIT_CREATION_DATE:
+        logging.info('Did *NOT* load commits.bin, this means we run against the entire gerrit history.')
+        return commits
+    else:
+        filename = 'commits.bin'
+        if path.exists(filename):
+            commits = load(filename)
+        logging.info('Succesfully loaded commits.bin')
+    return commits
 
-    cur.execute(changes_query)
-    changes = cur.fetchall()
-    commits = {} 
-    for change in changes:
-        commit = Commit(**change)
-        commits[commit.change_id] = commit
-    
-    cur.execute(approvals_query)
-    approvals = cur.fetchall()
-    for approval in approvals:
-        review = Review(**approval)
-        commit = commits.get(review.change_id)
-        if commit:
-            commit.reviews['%s-%s' % (review.granted, review.value)] = review # review.granted by itself is not guaranteed to be unique.
-        else:
-            print 'shit: %s' % review
-    
-    for commit in commits.itervalues():
-        commit.is_all_positive_reviews()
-        commit.calculate_wait()
-        commit.is_self_reviewed()
-#        if commit.time_first_review.date() == date.today() or commit.time_plus2 == date.today():
-#            for review in commit.reviews.itervalues():
-#                print review.granted, review.value
-        
-        repo = gerrit.repos.get(commit.dest_project_name)
-        if repo:
-            if repo.name == 'mediawiki/core':
-                print 'debug'
-            repo.increment(commit)
-
-        
-        else:
-            print 'shit, repo doesnt exist: %s' % commit.dest_project_name
-
-    #create_aggregate_dataset(gerrit.repos)        
-
-    for repo in gerrit.repos.itervalues():
-        if repo.name == 'mediawiki/core':
-            print 'debug'
-        repo.fill_in_missing_days()
-        repo.create_headings()
-        repo.prune_observations()
-        repo.write_dataset(gerrit)    
-        
 
 def parse_commandline():
     parser = argparse.ArgumentParser(description='Process some integers.')
@@ -234,7 +134,77 @@ def parse_commandline():
     return parser.parse_args()
     
 
+def main():
+    logging.info('Launching gerrit-stats')
+    
+    args = parse_commandline()
+    logging.info('Parsed commandline successfully.')
+    
+    gerrit = Gerrit(args)
+    db = MySQLdb.connect(host=settings.get('host'), db=settings.get('database'), passwd=settings.get('passwd'), user=settings.get('user'))
+    cur = db.cursor(MySQLdb.cursors.DictCursor)
+    logging.info('Obtained database cursor.')
+    
+    
+    yesterday = date.today() - timedelta(days=1)
+    if not args.recreate:
+        start_date = read_last_run()
+        commits = load_previous_results(start_date)
+    else:
+        commits = {}
+        start_date = GERRIT_CREATION_DATE
+    
 
+    args = (start_date, yesterday)
+    cur.execute(changes_query, args)
+    changes = cur.fetchall()
+    logging.info('Succesfully loaded commit data from database.')
+    for change in changes:
+        commit = Commit(**change)
+        commits[commit.change_id] = commit
+    
+    cur.execute(approvals_query, args)
+    approvals = cur.fetchall()
+    logging.info('Succesfully loaded approval data from database.')
+    for approval in approvals:
+        review = Review(**approval)
+        commit = commits.get(review.change_id)
+        if commit:
+            commit.reviews['%s-%s' % (review.granted, review.value)] = review # review.granted by itself is not guaranteed to be unique.
+        else:
+            logging.info('Could not find a commit that belongs to change_id: %s written by %s (%s) on %s' % (review.change_id, review.reviewer.full_name, review.reviewer.account_id, review.granted))
+                
+    
+    for commit in commits.itervalues():
+        commit.is_all_positive_reviews()
+        commit.is_self_reviewed()
+        commit.calculate_wait()
+        
+#        if commit.status != 'n':
+#            if commit.time_first_review.date() == date.today() or commit.time_plus2 == date.today():
+#                for review in commit.reviews.itervalues():
+#                    print review.granted, review.value
+        
+        repo = gerrit.repos.get(commit.dest_project_name)
+        if repo:
+            repo.increment(commit)
+        else:
+            logging.info('Repo %s does not exist, ignored repos are: %s' % (commit.dest_project_name, gerrit.ignore_repos))
+    
+    logging.info('Succesfully parsed commit data.')
+    # create datasets that are collections of repositories
+    create_aggregate_dataset(gerrit.repos)        
+    
+    for repo in gerrit.repos.itervalues():
+        repo.fill_in_missing_days()
+        repo.create_headings()
+        repo.prune_observations()
+        repo.write_dataset(gerrit)    
+    
+    # save results for future use.
+    save('commits', commits)
+    write_last_run(start_date)
+    logging.info('Closing down gerrit-stats, no errors.')
 
 if __name__== '__main__':
     main()
