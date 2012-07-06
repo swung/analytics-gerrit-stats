@@ -19,8 +19,9 @@ pip install gerrit-stats
 4. Add checks to detect schema change
 5. This script needs to be puppetized and launched from a cronjob every day at 11:59PM UTC.
     Andrew, maybe you can have a look at this next week?
- 6. Add developer-centric measures
- 7. Add active developers metric 
+6. Add developer-centric measures
+7. Add active developers metric 
+8. Contemplate use of server side db cursor
 
 ## Workflow
 

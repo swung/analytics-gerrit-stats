@@ -21,8 +21,15 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import sys
 import subprocess
+import logging
+import json
 
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
 
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+
+fh = logging.FileHandler('logs/gerrit-stats.txt')
 
 class Query(object):
     '''
@@ -63,12 +70,23 @@ class Query(object):
                 return results
         else:
             return results
+        
+    def parse_json(self, output):
+        output = output.split('\n')
+        data = []
+        for obs in output:
+            try:
+                data.append(json.loads(obs))
+            except ValueError, e:
+                print e
+        return data
 
     def run_gerrit(self):
         query = self.full.split(' ')
-        output = subprocess.Popen(query, shell=False, stdout=subprocess.PIPE).communicate()[0]
+        output, error = subprocess.Popen(query, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()  #[0]
+        if error:
+            logging.warning('Could not retrieve list with Gerrit repositories. Error %s' % error.strip())
+            logging.warning('Closing down gerrit-stats.')
+            sys.exit(-1)
         return output
     
-#    def run_sql(self):
-#        return RawQuery(self.model, self.raw)
-

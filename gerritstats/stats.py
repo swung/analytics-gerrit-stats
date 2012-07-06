@@ -19,9 +19,8 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
-import json
 import argparse
-import MySQLdb, MySQLdb.cursors
+import MySQLdb, MySQLdb.cursors, _mysql_exceptions
 import cPickle
 import logging
 
@@ -48,59 +47,6 @@ ch.setFormatter(formatter)
 logger.addHandler(ch)
 
 
-def read_last_run():
-    try:
-        fh = open('last_run.txt','r')
-        start_date = datetime.strptime(fh.readline(), '%Y-%m-%d')
-        fh.close()
-    except IOError:
-        start_date = GERRIT_CREATION_DATE
-    return start_date
-
-
-def write_last_run(start_date):
-    filename = 'last_run.txt'
-    fh = open(filename,'w')
-    fh.write('%s-%s-%s' % (start_date.year, start_date.month, start_date.day))
-    fh.close()
-    logging.info('Successfully wrote %s.' % filename)
-
-def parse_json(output):
-    output = output.split('\n')
-    data = []
-    for obs in output:
-        try:
-            data.append(json.loads(obs))
-        except ValueError, e:
-            print e
-    return data
-
-            
-def save(filename, obj):
-    filename = '%s.bin' %  filename
-    fh = open(filename, 'wb')
-    cPickle.dump(obj, fh)
-    fh.close()
-    logging.info('Successfully saved %s.' % filename)
-
-def load(obj):
-    filename = '%s.bin' % obj
-    fh = open(filename, 'rb')
-    obj = cPickle.load(fh)
-    fh.close()
-    logging.info('Successfully loaded %s.' % filename)
-    return obj
-
-
-def merge(parent_repo, repo):
-    for date, obs in repo.observations.iteritems():
-        if date not in parent_repo.observations:
-            parent_repo.observations[date] = obs
-        else:
-            for key, value in obs.iteritems():
-                parent_repo.observations[date].update(key, value)
-    return parent_repo
-        
 
 def create_aggregate_dataset(repos):
     logging.info('Creating datasets for parent repositories.')
@@ -110,6 +56,26 @@ def create_aggregate_dataset(repos):
             if parent_repo:
                 repos[parent_repo.name] = merge(parent_repo, repo) 
     return repos
+
+
+def init_db():
+    try:
+        db = MySQLdb.connect(host=settings.get('host'), db=settings.get('database'), passwd=settings.get('passwd'), user=settings.get('user'))
+        cur = db.cursor(MySQLdb.cursors.DictCursor)
+        logging.info('Obtained database cursor.')
+    except _mysql_exceptions.OperationalError, error:
+        logging.warning('Could *NOT* obtain database cursor. Error: %s' % error)
+    
+    return cur 
+
+
+def load(obj):
+    filename = '%s.bin' % obj
+    fh = open(filename, 'rb')
+    obj = cPickle.load(fh)
+    fh.close()
+    logging.info('Successfully loaded %s.' % filename)
+    return obj
 
 
 def load_previous_results(start_date):
@@ -124,6 +90,15 @@ def load_previous_results(start_date):
         logging.info('Succesfully loaded commits.bin')
     return commits
 
+def merge(parent_repo, repo):
+    for date, obs in repo.observations.iteritems():
+        if date not in parent_repo.observations:
+            parent_repo.observations[date] = obs
+        else:
+            for key, value in obs.iteritems():
+                parent_repo.observations[date].update(key, value)
+    return parent_repo
+
 
 def parse_commandline():
     parser = argparse.ArgumentParser(description='Process some integers.')
@@ -131,7 +106,33 @@ def parse_commandline():
     parser.add_argument('--recreate', help='Delete all existing datafiles and datasources and recreate them from scratch. This needs to be done whenever a new metric is added.', action='store_true', default=False)
     parser.add_argument('--toolkit', help='Specify the visualization library you want to use. Valid choices are: dygraphs and d3.', action='store', default='d3')
     return parser.parse_args()
+
+
+def read_last_run():
+    try:
+        fh = open('last_run.txt','r')
+        start_date = datetime.strptime(fh.readline(), '%Y-%m-%d')
+        fh.close()
+    except IOError:
+        start_date = GERRIT_CREATION_DATE
+    return start_date
+
+            
+def save(filename, obj):
+    filename = '%s.bin' %  filename
+    fh = open(filename, 'wb')
+    cPickle.dump(obj, fh)
+    fh.close()
+    logging.info('Successfully saved %s.' % filename)
     
+    
+def write_last_run(start_date):
+    filename = 'last_run.txt'
+    fh = open(filename,'w')
+    fh.write('%s-%s-%s' % (start_date.year, start_date.month, start_date.day))
+    fh.close()
+    logging.info('Successfully wrote %s.' % filename)
+ 
 
 def main():
     logging.info('Launching gerrit-stats')
@@ -140,10 +141,7 @@ def main():
     logging.info('Parsed commandline successfully.')
     
     gerrit = Gerrit(args)
-    db = MySQLdb.connect(host=settings.get('host'), db=settings.get('database'), passwd=settings.get('passwd'), user=settings.get('user'))
-    cur = db.cursor(MySQLdb.cursors.DictCursor)
-    logging.info('Obtained database cursor.')
-    
+    cur = init_db()
     
     yesterday = date.today() - timedelta(days=1)
     if not args.recreate:
@@ -157,14 +155,14 @@ def main():
     args = (start_date, yesterday)
     cur.execute(changes_query, args)
     changes = cur.fetchall()
-    logging.info('Succesfully loaded commit data from database.')
+    logging.info('Successfully loaded commit data from database.')
     for change in changes:
         commit = Commit(**change)
         commits[commit.change_id] = commit
     
     cur.execute(approvals_query, args)
     approvals = cur.fetchall()
-    logging.info('Succesfully loaded approval data from database.')
+    logging.info('Successfully loaded approval data from database.')
     for approval in approvals:
         review = Review(**approval)
         commit = commits.get(review.change_id)
@@ -190,7 +188,7 @@ def main():
         else:
             logging.info('Repo %s does not exist, ignored repos are: %s' % (commit.dest_project_name, gerrit.ignore_repos))
     
-    logging.info('Succesfully parsed commit data.')
+    logging.info('Successfully parsed commit data.')
     # create datasets that are collections of repositories
     create_aggregate_dataset(gerrit.repos)        
     
@@ -204,6 +202,7 @@ def main():
     save('commits', commits)
     write_last_run(start_date)
     logging.info('Closing down gerrit-stats, no errors.')
+    logging.info('Mission accomplished, beanz have been counted.')
 
 if __name__== '__main__':
     main()

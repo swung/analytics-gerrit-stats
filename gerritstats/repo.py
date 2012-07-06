@@ -32,6 +32,7 @@ except:
     from ordereddict import OrderedDict
 
 from yaml import YamlConfig
+from extensions import extensions
 from settings import GERRIT_CREATION_DATE
 
 logger = logging.getLogger()
@@ -64,26 +65,88 @@ class Repo(object):
         self.today = date.today()
         
         self.parent = self.determine_parent(gerrit)
+        self.wikimedia_extension = self.is_wikimedia_extension()
     
     def __str__(self):
         return self.name
     
-    def determine_parent(self, gerrit):
-        for parent in gerrit.parents:
-            if self.name.startswith(parent):
-                return parent
-        return None
-    
+    def create_dataset(self):
+        if self.filemode == 'w':
+            headings = self.generate_headings()
+            self.file_contents.write(headings)
+            self.file_contents.write('\n')
+            
+        dates = self.observations.keys()
+        dates.sort()
+        for date in dates:
+            observation = self.observations.get(date)
+            values = observation.get_values()
+            values.insert(0, date)          
+            values = ','.join(['%s' % value for value in values])
+            self.file_contents.write(values)
+            self.file_contents.write('\n')
+            
     def create_headings(self):
         self.metrics.sort()
         self.suffixes.sort()
         iterator =  product(self.metrics, self.suffixes)
         for it in iterator:
             yield self.merge_keys(it[0], it[1])
+            
+    def create_path(self):
+        folders = [self.yaml_directory,self.csv_directory]
+        for folder in folders:
+            if folder != '':
+                try:
+                    os.makedirs(folder)
+                    logging.info('Created %s'% folder )
+                except OSError:
+                    pass
     
-    def merge_keys(self, key1, key2):
-        return '%s_%s' %  (key1, key2)
-   
+    def daterange(self, start_date, end_date):
+        for n in range((end_date - start_date).days):
+            yield start_date + timedelta(n)
+    
+    def determine_directory(self, location):
+        return os.path.join(location, self.name)
+
+    def determine_filename(self):
+        return os.path.basename(self.name)
+    
+    def determine_filemode(self):
+        if os.path.isfile(self.full_csv_path) == False:
+            return 'w'
+        else:
+            return 'a'
+    
+    def determine_parent(self, gerrit):
+        for parent in gerrit.parents:
+            if self.name.startswith(parent):
+                return parent
+        return None    
+
+    def determine_first_commit_date(self):
+        dates = self.observations.keys()
+        dates.sort()
+        for date in dates:
+            touched = self.observations[date].touched
+            if not touched:
+                if date < self.future_date:
+                    self.first_commit = date + timedelta(days=1)
+            else:
+                break
+
+    def fill_in_missing_days(self):
+        for date in self.daterange(self.first_commit, self.today):
+            obs = self.observations.get(date, Observation(date, self, False))
+            self.observations[date] = obs
+    
+    def generate_headings(self):
+        headings = ['date', 'commits', 'self_review']
+        for heading in self.create_headings():
+            headings.append(heading)
+        return ','.join(headings)
+     
     def increment(self, commit):
         obs = self.observations.get(commit.created_on.date(), Observation(commit.created_on, self))
         obs.commits+=1
@@ -112,83 +175,24 @@ class Repo(object):
                         attr+=1
                     setattr(obs, heading, attr)
                 self.observations[obs.date] = obs
-       
-    def determine_directory(self, location):
-        return os.path.join(location, self.name)
-
-    def create_path(self):
-        folders = [self.yaml_directory,self.csv_directory]
-        for folder in folders:
-            if folder != '':
-                try:
-                    os.makedirs(folder)
-                    logging.info('Created %s'% folder )
-                except OSError:
-                    pass
-    
-    def determine_filename(self):
-        return os.path.basename(self.name)
-    
-    def determine_filemode(self):
-        if os.path.isfile(self.full_csv_path) == False:
-            return 'w'
+ 
+    def is_wikimedia_extension(self):
+        shortname = self.name.split('/')[-1]
+        if shortname in extensions:
+            print 'YAYA'
+            return True
         else:
-            return 'a'
-    
-    def daterange(self, start_date, end_date):
-        for n in range((end_date - start_date).days):
-            yield start_date + timedelta(n)
-
-#    def construct_day_key(self, date):
-#        day = '%s%s' % (0, date.day) if date.day < 10 else date.day
-#        month = '%s%s' % (0, date.month) if date.month < 10 else date.month
-#        return '%s-%s-%s' % (date.year, month, day)
-    
-    def fill_in_missing_days(self):
-        for date in self.daterange(self.first_commit, self.today):
-            obs = self.observations.get(date, Observation(date, self, False))
-            self.observations[date] = obs
-            
+            return False
         
-    def determine_first_commit_date(self):
-        dates = self.observations.keys()
-        dates.sort()
-        for date in dates:
-            touched = self.observations[date].touched
-            if not touched:
-                if date < self.future_date:
-                    self.first_commit = date + timedelta(days=1)
-            else:
-                break
-
+    def merge_keys(self, key1, key2):
+        return '%s_%s' %  (key1, key2)
+           
     def prune_observations(self):
         self.determine_first_commit_date()
         for date in self.observations.keys():
             if date < self.first_commit:
                 del self.observations[date]
     
-    def generate_headings(self):
-        headings = ['date', 'commits', 'self_review']
-        for heading in self.create_headings():
-            headings.append(heading)
-        return ','.join(headings)
-            
-    def create_dataset(self):
-        if self.filemode == 'w':
-            headings = self.generate_headings()
-            self.file_contents.write(headings)
-            self.file_contents.write('\n')
-            
-        dates = self.observations.keys()
-        dates.sort()
-        for date in dates:
-            observation = self.observations.get(date)
-            values = observation.get_values()
-            values.insert(0, date)          
-            values = ','.join(['%s' % value for value in values])
-            self.file_contents.write(values)
-            self.file_contents.write('\n')
-            
     def write_dataset(self, gerrit):
         #if dataset is empty then there is no need to write it 
         if not self.observations == {}:
@@ -221,10 +225,11 @@ class Observation(object):
             if not prop.startswith('__') and prop not in self.ignore:
                 yield prop
     
-    def update(self, key, value):
-        prop = getattr(self, key)
-        prop += value
-        
+    def convert_to_date(self, date):
+        if type(date) == datetime:
+            return date.date()
+        else:
+            return date
     
     def iteritems(self):
         for prop in self:
@@ -237,8 +242,7 @@ class Observation(object):
             values.append(getattr(self, prop))
         return values
 
-    def convert_to_date(self, date):
-        if type(date) == datetime:
-            return date.date()
-        else:
-            return date
+    def update(self, key, value):
+        prop = getattr(self, key)
+        prop += value
+    
