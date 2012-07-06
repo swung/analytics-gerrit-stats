@@ -63,7 +63,7 @@ def write_last_run(start_date):
     fh = open(filename,'w')
     fh.write('%s-%s-%s' % (start_date.year, start_date.month, start_date.day))
     fh.close()
-    logging.info('Successfully wrote  %s.' % filename)
+    logging.info('Successfully wrote %s.' % filename)
 
 def parse_json(output):
     output = output.split('\n')
@@ -129,7 +129,6 @@ def parse_commandline():
     parser = argparse.ArgumentParser(description='Process some integers.')
     parser.add_argument('--datasets', help='Specify the absolute path to store the gerrit-stats datasets.', required=True)
     parser.add_argument('--recreate', help='Delete all existing datafiles and datasources and recreate them from scratch. This needs to be done whenever a new metric is added.', action='store_true', default=False)
-    parser.add_argument('--verbose', help='Output intermediate results to see what\'s happening.', action='store_true', default=False)
     parser.add_argument('--toolkit', help='Specify the visualization library you want to use. Valid choices are: dygraphs and d3.', action='store', default='d3')
     return parser.parse_args()
     

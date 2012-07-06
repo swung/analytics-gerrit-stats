@@ -43,7 +43,9 @@ class Developer(object):
         self.preferred_email = kwargs.get('preferred_email')
         self.registered_on = kwargs.get('registered_on')
         self.account_id = kwargs.get('account_id')
+        
         self.staff = self.is_staff()
+        self.human = self.is_human()
         
     def __str__(self):
         return self.full_name
@@ -55,6 +57,14 @@ class Developer(object):
             return True
         else:
             return False
+    
+    def is_human(self):
+        non_human_reviewers = ['jenkins-bot']
+        if self.full_name in non_human_reviewers:
+            return False
+        else:
+            return True
+            
         
 
 class Commit(object):
