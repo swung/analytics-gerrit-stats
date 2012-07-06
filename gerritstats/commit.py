@@ -40,9 +40,11 @@ whitelist = set([
 class Developer(object):
     def __init__(self, **kwargs):
         self.full_name = kwargs.get('full_name')
-        self.preferred_email = kwargs.get('preferred_email')
+        self.preferred_email = kwargs.get('preferred_email', '')
         self.registered_on = kwargs.get('registered_on')
         self.account_id = kwargs.get('account_id')
+        
+        self.fix_email()
         
         self.staff = self.is_staff()
         self.human = self.is_human()
@@ -59,11 +61,16 @@ class Developer(object):
             return False
     
     def is_human(self):
-        non_human_reviewers = ['jenkins-bot']
+        non_human_reviewers = ['jenkins-bot','L10n-bot', 'gerrit2']
         if self.full_name in non_human_reviewers:
             return False
         else:
             return True
+
+    def fix_email(self):
+        if self.preferred_email == None:
+            self.preferred_email = 'No email address'
+
             
         
 
