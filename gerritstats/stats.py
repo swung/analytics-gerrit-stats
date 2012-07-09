@@ -19,6 +19,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
+import sys
 import argparse
 import MySQLdb, MySQLdb.cursors, _mysql_exceptions
 import cPickle
@@ -65,7 +66,7 @@ def init_db():
         logging.info('Obtained database cursor.')
     except _mysql_exceptions.OperationalError, error:
         logging.warning('Could *NOT* obtain database cursor. Error: %s' % error)
-    
+ 	sys.exit(-1)   
     return cur 
 
 
@@ -103,6 +104,7 @@ def merge(parent_repo, repo):
 def parse_commandline():
     parser = argparse.ArgumentParser(description='Process some integers.')
     parser.add_argument('--datasets', help='Specify the absolute path to store the gerrit-stats datasets.', required=True)
+    parser.add_argument('--log', help='Specify the absolute path to store the log files.', required=True)
     parser.add_argument('--recreate', help='Delete all existing datafiles and datasources and recreate them from scratch. This needs to be done whenever a new metric is added.', action='store_true', default=False)
     parser.add_argument('--toolkit', help='Specify the visualization library you want to use. Valid choices are: dygraphs and d3.', action='store', default='d3')
     return parser.parse_args()

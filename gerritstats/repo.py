@@ -179,7 +179,6 @@ class Repo(object):
     def is_wikimedia_extension(self):
         shortname = self.name.split('/')[-1]
         if shortname in extensions:
-            print 'YAYA'
             return True
         else:
             return False

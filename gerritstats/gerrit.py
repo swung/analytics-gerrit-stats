@@ -44,6 +44,7 @@ class Gerrit(object):
     '''
     def __init__(self, args):
         self.dataset = args.datasets
+        self.log_location = args.log
         self.csv_location, self.yaml_location = self.init_locations()
         self.host = 'gerrit.wikimedia.org'
         self.port = 29418
@@ -51,7 +52,9 @@ class Gerrit(object):
         self.recreate = args.recreate
         self.toolkit = args.toolkit
         self.repos = {}
-        self.is_valid_path()
+        self.is_valid_path(self.yaml_location)
+        self.is_valid_path(self.csv_location)
+        self.is_valid_path(self.log_location)
 
         self.ignore_repos = ['test', 'operations/private']
         self.parents = [
@@ -82,13 +85,11 @@ class Gerrit(object):
                 pass
             logging.info('Succesfully removed data/datafiles/ and data/datasources/.')
 
-    def is_valid_path(self):
-        if os.path.isabs(self.csv_location) == False:
-            raise Exception("Please specify an absolute path.")
-            sys.exit(-1) 
-        if os.path.isabs(self.yaml_location) == False:
+    def is_valid_path(self, path):
+        if os.path.isabs(path) == False:
             raise Exception("Please specify an absolute path.")
             sys.exit(-1)
+            
 
     def fetch_repos(self):
         logging.info('Fetching list of all Gerrit repositories')
@@ -97,7 +98,8 @@ class Gerrit(object):
         repos_list = repos_list.split('\n')
         for repo in repos_list:
             if repo.find('wikimedia/orgchart') > -1:
-                print 'debug'
+                #print 'debug'
+                pass
             try:
                 repo, description = repo.split(' - ')
             except ValueError:
