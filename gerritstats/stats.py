@@ -37,10 +37,10 @@ logger.setLevel(logging.DEBUG)
 
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 
-fh = logging.FileHandler('logs/gerrit-stats.txt')
-fh.setLevel(logging.DEBUG)
-fh.setFormatter(formatter)
-logger.addHandler(fh)
+#fh = logging.FileHandler('logs/gerrit-stats.txt')
+#fh.setLevel(logging.DEBUG)
+#fh.setFormatter(formatter)
+#logger.addHandler(fh)
 
 ch = logging.StreamHandler()
 ch.setLevel(logging.DEBUG)
@@ -66,7 +66,7 @@ def init_db():
         logging.info('Obtained database cursor.')
     except _mysql_exceptions.OperationalError, error:
         logging.warning('Could *NOT* obtain database cursor. Error: %s' % error)
- 	sys.exit(-1)   
+        sys.exit(-1)   
     return cur 
 
 
@@ -102,7 +102,7 @@ def merge(parent_repo, repo):
 
 
 def parse_commandline():
-    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser = argparse.ArgumentParser(description='Welcome to gerrit-stats.')
     parser.add_argument('--datasets', help='Specify the absolute path to store the gerrit-stats datasets.', required=True)
     parser.add_argument('--log', help='Specify the absolute path to store the log files.', required=True)
     parser.add_argument('--recreate', help='Delete all existing datafiles and datasources and recreate them from scratch. This needs to be done whenever a new metric is added.', action='store_true', default=False)
