@@ -44,7 +44,7 @@ class Gerrit(object):
     '''
     def __init__(self, args):
         self.dataset = args.datasets
-        self.log_location = args.log
+        #self.log_location = args.log
         self.csv_location, self.yaml_location = self.init_locations()
         self.host = 'gerrit.wikimedia.org'
         self.port = 29418
@@ -54,7 +54,7 @@ class Gerrit(object):
         self.repos = {}
         self.is_valid_path(self.yaml_location)
         self.is_valid_path(self.csv_location)
-        self.is_valid_path(self.log_location)
+        #self.is_valid_path(self.log_location)
 
         self.ignore_repos = ['test', 'operations/private']
         self.parents = [
