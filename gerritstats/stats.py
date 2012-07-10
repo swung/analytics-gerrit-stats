@@ -53,8 +53,7 @@ def create_aggregate_dataset(repos):
     return repos
 
 
-def create_path(filename):
-    location = os.path.abspath( __file__ )[:-8]
+def create_path(location, filename):
     return os.path.join(location, filename)
 
 def init_db(my_cnf):
@@ -68,13 +67,13 @@ def init_db(my_cnf):
     return cur 
 
 
-def load(filename):
-    path = create_path(filename)
+def load(location, filename):
+    path = create_path(location, filename)
     if os.path.exists(path):
         fh = open(path, 'rb')
         obj = cPickle.load(fh)
         fh.close()
-        logging.info('Successfully loaded %s.' % filename)
+        logging.info('Successfully loaded %s.' % path)
     else:
         logging.warning('There is possibly a problem: gerrit-stats was able to detect that a previous was carried out but could not load commits.bin.')
         logging.warning('It is probably best to delete the file last_run.txt and start gerrit-stats again.')
@@ -82,14 +81,14 @@ def load(filename):
     return obj
 
 
-def load_previous_results(start_date):
+def load_previous_results(location, start_date):
     commits = {}
     if start_date == GERRIT_CREATION_DATE:
         logging.info('Did *NOT* load commits.bin, this means we run against the entire gerrit history.')
         return commits
     else:
         filename = 'commits.bin'
-        commits = load(filename)
+        commits = load(location, filename)
     return commits
 
 def merge(parent_repo, repo):
@@ -111,8 +110,8 @@ def parse_commandline():
     return parser.parse_args()
 
 
-def read_last_run():
-    path = create_path('last_run.txt')
+def read_last_run(location):
+    path = create_path(location, 'last_run.txt')
     try:
         fh = open(path, 'r')
         start_date = datetime.strptime(fh.readline(), '%Y-%m-%d')
@@ -122,17 +121,17 @@ def read_last_run():
     return start_date
 
             
-def save(filename, obj):
-    path = create_path(filename)
+def save(location, filename, obj):
+    path = create_path(location, filename)
     fh = open(path, 'wb')
     cPickle.dump(obj, fh)
     fh.close()
     logging.info('Successfully saved %s.' % path)
     
     
-def write_last_run(start_date):
+def write_last_run(start_date, location):
     filename = 'last_run.txt'
-    path = create_path(filename)
+    path = create_path(location, filename)
     fh = open(path,'w')
     fh.write('%s-%s-%s' % (start_date.year, start_date.month, start_date.day))
     fh.close()
@@ -164,8 +163,8 @@ def main():
         commits = {}
         start_date = GERRIT_CREATION_DATE
     else:
-        start_date = read_last_run()
-        commits = load_previous_results(start_date)
+        start_date = read_last_run(gerrit.dataset)
+        commits = load_previous_results(gerrit.dataset, start_date)
     
     logging.info('Queries will span timeframe: %s - %s.' % (start_date, yesterday))
     logging.info('Queries will always run up to \'yesterday\', so that we always have counts for full days.')
@@ -217,8 +216,8 @@ def main():
         repo.write_dataset(gerrit)    
     
     # save results for future use.
-    save('commits.bin', commits)
-    write_last_run(yesterday)
+    save(gerrit.dataset, 'commits.bin', commits)
+    write_last_run(yesterday, gerrit.dataset)
     successful_exit()
 
 if __name__== '__main__':
