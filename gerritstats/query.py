@@ -29,7 +29,6 @@ logger.setLevel(logging.DEBUG)
 
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 
-#fh = logging.FileHandler('logs/gerrit-stats.txt')
 
 class Query(object):
     '''

@@ -19,34 +19,28 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
+import os
 import sys
 import argparse
 import MySQLdb, MySQLdb.cursors, _mysql_exceptions
 import cPickle
 import logging
 
-import os.path as path
 from datetime import datetime, date, timedelta
 
 from gerrit import Gerrit
 from commit import Review, Commit
-from settings import settings, GERRIT_CREATION_DATE, approvals_query, changes_query
+from settings import GERRIT_CREATION_DATE, approvals_query, changes_query
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 
-#fh = logging.FileHandler('logs/gerrit-stats.txt')
-#fh.setLevel(logging.DEBUG)
-#fh.setFormatter(formatter)
-#logger.addHandler(fh)
-
 ch = logging.StreamHandler()
 ch.setLevel(logging.DEBUG)
 ch.setFormatter(formatter)
 logger.addHandler(ch)
-
 
 
 def create_aggregate_dataset(repos):
@@ -59,23 +53,32 @@ def create_aggregate_dataset(repos):
     return repos
 
 
-def init_db():
+def create_path(filename):
+    location = os.path.abspath( __file__ )[:-8]
+    return os.path.join(location, filename)
+
+def init_db(my_cnf):
     try:
-        db = MySQLdb.connect(host=settings.get('host'), db=settings.get('database'), passwd=settings.get('passwd'), user=settings.get('user'))
+        db = MySQLdb.connect(read_default_file=my_cnf)
         cur = db.cursor(MySQLdb.cursors.DictCursor)
         logging.info('Obtained database cursor.')
     except _mysql_exceptions.OperationalError, error:
         logging.warning('Could *NOT* obtain database cursor. Error: %s' % error)
-        sys.exit(-1)   
+        unsuccessfull_exit()
     return cur 
 
 
-def load(obj):
-    filename = '%s.bin' % obj
-    fh = open(filename, 'rb')
-    obj = cPickle.load(fh)
-    fh.close()
-    logging.info('Successfully loaded %s.' % filename)
+def load(filename):
+    path = create_path(filename)
+    if os.path.exists(path):
+        fh = open(path, 'rb')
+        obj = cPickle.load(fh)
+        fh.close()
+        logging.info('Successfully loaded %s.' % filename)
+    else:
+        logging.warning('There is possibly a problem: gerrit-stats was able to detect that a previous was carried out but could not load commits.bin.')
+        logging.warning('It is probably best to delete the file last_run.txt and start gerrit-stats again.')
+        unsuccessfull_exit()
     return obj
 
 
@@ -86,9 +89,7 @@ def load_previous_results(start_date):
         return commits
     else:
         filename = 'commits.bin'
-        if path.exists(filename):
-            commits = load(filename)
-        logging.info('Succesfully loaded commits.bin')
+        commits = load(filename)
     return commits
 
 def merge(parent_repo, repo):
@@ -102,17 +103,18 @@ def merge(parent_repo, repo):
 
 
 def parse_commandline():
-    parser = argparse.ArgumentParser(description='Welcome to gerrit-stats.')
+    parser = argparse.ArgumentParser(description='Welcome to gerrit-stats. The mysql credentials should be stored in the .my.cnf file. By default, this file is read from the user\'s home directory. You can specify an alternative location using the --config option.')
+    parser.add_argument('--config', help='Specify the absolute path to tell gerrit-stats where it can find the MySQL my.cnf file.', action='store', required=False, default='~/.my.cnf')
     parser.add_argument('--datasets', help='Specify the absolute path to store the gerrit-stats datasets.', required=True)
-    #parser.add_argument('--log', help='Specify the absolute path to store the log files.', required=True)
     parser.add_argument('--recreate', help='Delete all existing datafiles and datasources and recreate them from scratch. This needs to be done whenever a new metric is added.', action='store_true', default=False)
     parser.add_argument('--toolkit', help='Specify the visualization library you want to use. Valid choices are: dygraphs and d3.', action='store', default='d3')
     return parser.parse_args()
 
 
 def read_last_run():
+    path = create_path('last_run.txt')
     try:
-        fh = open('last_run.txt','r')
+        fh = open(path, 'r')
         start_date = datetime.strptime(fh.readline(), '%Y-%m-%d')
         fh.close()
     except IOError:
@@ -121,20 +123,31 @@ def read_last_run():
 
             
 def save(filename, obj):
-    filename = '%s.bin' %  filename
-    fh = open(filename, 'wb')
+    path = create_path(filename)
+    fh = open(path, 'wb')
     cPickle.dump(obj, fh)
     fh.close()
-    logging.info('Successfully saved %s.' % filename)
+    logging.info('Successfully saved %s.' % path)
     
     
 def write_last_run(start_date):
     filename = 'last_run.txt'
-    fh = open(filename,'w')
+    path = create_path(filename)
+    fh = open(path,'w')
     fh.write('%s-%s-%s' % (start_date.year, start_date.month, start_date.day))
     fh.close()
-    logging.info('Successfully wrote %s.' % filename)
- 
+    logging.info('Successfully wrote %s.' % path)
+
+def successful_exit():
+    logging.info('Closing down gerrit-stats, no errors.')
+    logging.info('Mission accomplished, beanz have been counted.')
+
+
+def unsuccessfull_exit():
+    logging.error('Gerrit-stats exited unsuccessfully, please look at the logs for hints on how to fix the problem.')
+    logging.error('If the problem remains, contact Diederik van Liere <dvanliere@wikimedia.org>')
+    sys.exit(-1)   
+
 
 def main():
     logging.info('Launching gerrit-stats')
@@ -143,16 +156,19 @@ def main():
     logging.info('Parsed commandline successfully.')
     
     gerrit = Gerrit(args)
-    cur = init_db()
+    cur = init_db(gerrit.my_cnf)
+    gerrit.fetch_repos()
     
     yesterday = date.today() - timedelta(days=1)
-    if not args.recreate:
-        start_date = read_last_run()
-        commits = load_previous_results(start_date)
-    else:
+    if args.recreate:
         commits = {}
         start_date = GERRIT_CREATION_DATE
+    else:
+        start_date = read_last_run()
+        commits = load_previous_results(start_date)
     
+    logging.info('Queries will span timeframe: %s - %s.' % (start_date, yesterday))
+    logging.info('Queries will always run up to \'yesterday\', so that we always have counts for full days.')
 
     args = (start_date, yesterday)
     cur.execute(changes_query, args)
@@ -201,10 +217,9 @@ def main():
         repo.write_dataset(gerrit)    
     
     # save results for future use.
-    save('commits', commits)
-    write_last_run(start_date)
-    logging.info('Closing down gerrit-stats, no errors.')
-    logging.info('Mission accomplished, beanz have been counted.')
+    save('commits.bin', commits)
+    write_last_run(yesterday)
+    successful_exit()
 
 if __name__== '__main__':
     main()

@@ -33,7 +33,6 @@ logger.setLevel(logging.DEBUG)
 
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 
-#fh = logging.FileHandler('logs/gerrit-stats.txt')
 
 class Gerrit(object):
     '''
@@ -44,7 +43,7 @@ class Gerrit(object):
     '''
     def __init__(self, args):
         self.dataset = args.datasets
-        #self.log_location = args.log
+        self.my_cnf = args.config
         self.csv_location, self.yaml_location = self.init_locations()
         self.host = 'gerrit.wikimedia.org'
         self.port = 29418
@@ -54,7 +53,7 @@ class Gerrit(object):
         self.repos = {}
         self.is_valid_path(self.yaml_location)
         self.is_valid_path(self.csv_location)
-        #self.is_valid_path(self.log_location)
+        self.is_valid_path(self.my_cnf)
 
         self.ignore_repos = ['test', 'operations/private']
         self.parents = [
@@ -65,7 +64,6 @@ class Gerrit(object):
         ]
 
         self.remove_old_datasets()
-        self.fetch_repos()
 
     def __str__(self):
         return 'Gerrit-stats general settings object.'
@@ -75,7 +73,6 @@ class Gerrit(object):
         yaml = os.path.join(self.dataset, 'datasources')
         return csv, yaml
 
-
     def remove_old_datasets(self):
         if self.recreate:
             try:
@@ -83,12 +80,16 @@ class Gerrit(object):
                 shutil.rmtree('data/datasources')
             except OSError:
                 pass
-            logging.info('Succesfully removed data/datafiles/ and data/datasources/.')
+            logging.info('Successfully removed data/datafiles/ and data/datasources/.')
 
     def is_valid_path(self, path):
+        if path.startswith('~'):
+            path = os.path.expanduser(path)
         if os.path.isabs(path) == False:
             raise Exception("Please specify an absolute path.")
             sys.exit(-1)
+        else:
+            logging.info('%s is a valid path.' % path)
             
 
     def fetch_repos(self):
@@ -98,7 +99,6 @@ class Gerrit(object):
         repos_list = repos_list.split('\n')
         for repo in repos_list:
             if repo.find('wikimedia/orgchart') > -1:
-                #print 'debug'
                 pass
             try:
                 repo, description = repo.split(' - ')

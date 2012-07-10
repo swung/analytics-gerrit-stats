@@ -20,16 +20,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
 from datetime import date
-from socket import gethostname
-if gethostname() == 'drdee':
-    from local import settings
-else:
-    settings = {
-                'database':'reviewdb',
-                'passwd':'',
-                'host':'localhost',
-                'user':'',
-                }
 
 GERRIT_CREATION_DATE = date(2011,9,7)
 
