@@ -8,7 +8,7 @@
 This package is not in PyPi, as it is WMF-specific. Install it by cloning the repo, and then using `pip` or `easy_install`:
 
 ```sh
-git clone git@less.ly:gerrit-stats.git
+git clone https://gerrit.wikimedia.org/r/p/analytics/gerrit-stats.git
 pip install gerrit-stats
 ```
 

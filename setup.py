@@ -20,7 +20,7 @@ setup(
     version          = __version__,
     description      = 'Generate codereview stats based from Gerrit commits',
     long_description = readme,
-    url              = 'http://git.less.ly/?p=gerrit-stats.git',
+	url              = 'https://gerrit.wikimedia.org/gitweb/analytics/gerrit-stats.git',
     
     author           = 'Diederik van Liere',
     author_email     = 'dvanliere@wikimedia.org',
