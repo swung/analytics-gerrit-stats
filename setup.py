@@ -27,7 +27,10 @@ setup(
     
     packages         = find_packages(),
     entry_points     = { 'console_scripts':['gerrit-stats = gerritstats:main'] },
-    
+	install_requires = [
+		"MySQL-python",
+	],
+
     # install_requires = [
     #     "bunch  >= 1.0",
     #     "PyYAML >= 3.10",
