@@ -27,19 +27,28 @@ class YamlConfig(object):
         self.format = 'csv'
         self.gerrit = gerrit
         self.repo = repo
-        self.dataset_id = repo.name
-        self.name = self.set_description(repo)
-        self.shortname = 'Codereview stats for %s' % repo.name
+        self.shortname = repo.name
+        self.dataset_id = self.generate_id()
+        self.name = self.set_description()
         self.url = self.set_url()
         self.buffer = StringIO()
     
-    def set_url(self):
-        pos = self.dataset_id.rfind('/') +1
-        repo_name = self.dataset_id[pos:]
-        return '/data/datasources/gerrit-stats/datafiles/%s/%s.%s' % (self.dataset_id, repo_name, self.format)
+    def generate_id(self):
+        return '%s_%s' % (self.repo.name.replace('/','_'), self.get_repo_short_name())
     
-    def set_description(self, repo):
-        return '%s' % (repo.name)
+    def get_repo_short_name(self):
+        pos = self.shortname.rfind('/') +1
+        if pos > 0:
+            return self.shortname[pos:]
+        else:
+            return self.shortname
+    
+    def set_url(self):
+        repo_short_name = self.get_repo_short_name()
+        return '/data/datafiles/gs/%s/%s.%s' % (self.repo.name, repo_short_name, self.format)
+    
+    def set_description(self):
+        return 'Codereview stats for %s repo' % self.repo.name
     
     def set_metadata(self):
         self.buffer.write('id: %s\n' % self.dataset_id)
@@ -63,7 +72,6 @@ class YamlConfig(object):
         num_headings = len(headings)
         self.buffer.write('columns:\n')
         self.buffer.write('    labels:\n')
-        self.buffer.write('    - Date\n')
         for heading in headings:
             self.buffer.write('    - %s\n' % heading)
         self.buffer.write('    types:\n')

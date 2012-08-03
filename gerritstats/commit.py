@@ -91,7 +91,7 @@ class Commit(object):
         self.reviews = OrderedDict()
         self.self_review = False
         self.repo_has_review = True
-        self.time_first_review = datetime.today()  #wait time between creation and first plus 1
+        self.time_first_review = datetime.today()  #wait time between creation and first review
         self.time_plus2 = datetime.today()  #wait time between first plus 1 and plus 2
         self.merge_review = None #this will become an instance of Review
         self.all_positive_reviews = None
@@ -102,14 +102,11 @@ class Commit(object):
     
     def is_self_reviewed(self):
         if self.merged:
-#            if not self.merge_review:
-#                print self, self.reviews
             try:
                 if self.owner_account_id == self.merge_review.account_id:
-                    return True
+                    self.self_review = True
             except AttributeError:
                 pass
-        return False
     
     def is_all_positive_reviews(self):
         values = [True if review.value > 0 else False for review in self.reviews.itervalues()]
@@ -120,43 +117,46 @@ class Commit(object):
         
     
     def calculate_wait(self):
+        try:
+            key = self.reviews.keys()[-1]
+            most_recent_review = self.reviews.get(key)
+            last_updated_on = most_recent_review.granted 
+        except (IndexError, AttributeError):
+            last_updated_on = self.last_updated_on
+        
         if self.reviews == {}:
-            if self.status == 'A':
-                # edge case 1
-                # the commit has been abandoned and there are no reviews
-                # then just reset the review times to when the commit was abandoned
-                self.time_first_review = self.last_updated_on
-                self.time_plus2 = self.last_updated_on
-            elif self.status == 'M':
-                # edge case 2
+            #there were no reviews
+            if self.status == 'M' or self.status == 'A' or self.status == 'd':
+                # edge case 
                 # commit has been merged without any reviews.
-                self.time_first_review = self.last_updated_on
-                self.time_plus2 = self.last_updated_on
-            elif self.status == 'd':
-                # edge case 3
-                # ignore draft commits for now
-                self.time_first_review = self.last_updated_on
-                self.time_plus2 = self.last_updated_on
+                self.time_first_review = Review(granted=last_updated_on)
+                self.time_plus2 = Review(granted=last_updated_on)
         else:
-            values = []
-            for review in self.reviews.itervalues():
-                values.append(review.value)
-                if review.value != 2:
-                    if review.granted < self.time_first_review:
-                        self.time_first_review = review.granted
-                else:
-                    if self.all_positive_reviews == True:
-                        self.time_plus2 = review.granted
-                        self.merge_review = review
-                    else:
-                        self.time_plus2 = self.created_on
-            if values != [] and min(values) == 2:
-                # edge case 4
-                # this handles the edge case where there is only a +2
-                # review, in that case the time to first review variable
-                # is set to time_plus2. 
-                self.time_first_review = self.time_plus2
-                        
+            reviews = {}
+            dates = []
+            for key, review in self.reviews.iteritems():
+                
+                reviews[review.value] = review
+                dates.append(key)
+            
+            self.merge_review = reviews.get(2, None)
+
+            if self.merged:
+                self.time_first_review = self.reviews.get(min(dates))
+                self.time_plus2 = reviews.get(2, Review(granted=self.last_updated_on))
+            else:
+                self.time_first_review = self.reviews.get(min(dates))
+                self.time_plus2 = Review(granted=self.created_on) #by setting the date to creation date, the metric does not get biased. 
+            
+        if self.time_plus2 == None: 
+            print 'break'
+        if type(self.time_plus2) == datetime:
+            if self.reviews != {}:
+                if self.time_plus2.year ==2012 and self.time_plus2.month==7 and self.time_plus2.day == 27:
+                    print self.change_id
+        else:
+            if self.time_plus2.granted.year ==2012 and self.time_plus2.granted.month==7 and self.time_plus2.granted.day == 27:
+                print self.change_id
         
     
 class Review(object):

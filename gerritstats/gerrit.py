@@ -20,13 +20,12 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
 import os
-import shutil
+import fnmatch
 import sys
 import logging
 
 from query import Query
 from repo import Repo
-
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -50,19 +49,12 @@ class Gerrit(object):
         self.format = 'JSON'
         self.recreate = args.recreate
         self.toolkit = args.toolkit
+        self.ssh_username = args.ssh_username
         self.repos = {}
+        self.ignore_repos = ['test', 'private']
         self.is_valid_path(self.yaml_location)
         self.is_valid_path(self.csv_location)
         self.is_valid_path(self.my_cnf)
-
-        self.ignore_repos = ['test', 'operations/private']
-        self.parents = [
-            'mediawiki/core',
-            'mediawiki/extensions',
-            'operations',
-            'analytics',
-        ]
-
         self.remove_old_datasets()
 
     def __str__(self):
@@ -73,14 +65,23 @@ class Gerrit(object):
         yaml = os.path.join(self.dataset, 'datasources')
         return csv, yaml
 
+    def walk_directory(self, folder, pattern):
+        for root, dirnames, filenames in os.walk(folder):
+            for filename in fnmatch.filter(filenames, pattern):
+                yield os.path.join(root, filename)
+
     def remove_old_datasets(self):
         if self.recreate:
+            sources = ['data/datafiles', 'data/datasources']
             try:
-                shutil.rmtree('data/datafiles')
-                shutil.rmtree('data/datasources')
+                for source in sources:
+                    for filename in self.walk_directory(source, '*.*'):
+                        os.unlink(filename)
+                    logging.info('Successfully removed %s' % source)
+                #shutil.rmtree('data/datafiles')
+                #shutil.rmtree('data/datasources')
             except OSError:
                 pass
-            logging.info('Successfully removed data/datafiles/ and data/datasources/.')
 
     def is_valid_path(self, path):
         if path.startswith('~'):
@@ -95,8 +96,6 @@ class Gerrit(object):
     def fetch_repos(self):
         logging.info('Fetching list of all Gerrit repositories')
         repos_list = self.list_repos()
-        repos_list = repos_list.strip()
-        repos_list = repos_list.split('\n')
         for repo in repos_list:
             if repo.find('wikimedia/orgchart') > -1:
                 pass
@@ -112,196 +111,21 @@ class Gerrit(object):
             if all(tests):
                 rp = Repo(repo, description, self)
                 self.repos[rp.name] = rp
+        
+        for repo in self.parents:
+            if repo['name'] not in self.repos:
+                self.repos[repo['name']] = Repo(repo['name'], repo['description'], self)
 
 
     def list_repos(self):
         list_repo_query = {
                            'name':'list_repos', 
-                           'raw_query': 'ls-projects -d', 
+                           'query': 'gerrit ls-projects -d', 
                            'method': 'ssh', 
                            'support_json': False, 
-                           'model': None, 
-                           'handler': 'parse_json', 
-                           'debug': True, 
-                           'recreate':True,
-                           'headings': None,
                            }
-        query = Query(self, **list_repo_query)
+        query = Query(gerrit=self, **list_repo_query)
         return query.launch()
-    
-#    def init_repo_queries(self):
-#        if not self.recreate:
-#            per_repo_queries =[
-#                           {
-#                            'name':'only+1', 
-#                            'raw_query':'-- CodeReview+1 -CodeReview+2 -CodeReview-1 -CodeReview-2',
-#                            'method':'ssh', 
-#                            'support_json': True, 
-#                            'model': None, 
-#                            'handler': 'parse_json', 
-#                            'debug': True, 
-#                            'recreate': False,
-#                            'headings': ['count','staff_count', 'wikipedian_count'],
-#                            },
-#                           
-#                           {
-#                            'name':'no_review',
-#                            'raw_query': '-- -CodeReview+1 -CodeReview-1 -CodeReview+2 -CodeReview-2', 
-#                            'method':'ssh', 
-#                            'support_json': True, 
-#                            'model': None, 
-#                            'handler': 'parse_json', 
-#                            'debug': True, 
-#                            'recreate': False,  
-#                            'headings': ['count','staff_count', 'wikipedian_count'],
-#                            },
-#                               
-#                           {
-#                            'name':'self_review',
-#                            'raw_query': '', 
-#                            'method': 'sql', 
-#                            'support_json': True, 
-#                            'model': None, 
-#                            'handler': 'parse_json', 
-#                            'debug': True, 
-#                            'recreate': False, 
-#                            'headings': ['count'],
-#                            },
-#                               
-#                           {
-#                            'name':'daily_commits',
-#                            'raw_query':'select revision, patch_sets.created_on, dest_project_name from patch_sets INNER JOIN changes ON patch_sets.change_id = changes.change_id where patch_sets.created_on >= CURRENT_DATE();', 
-#                            'method':'sql', 
-#                            'support_json': False, 
-#                            'model': None, 
-#                            'handler': 'parse_json', 
-#                            'debug': True, 
-#                            'recreate': False,
-#                            'headers': ['count','staff_count', 'wikipedian_count'],
-#                            },
-#                           ]
-#            
-#        if self.recreate:
-#            per_repo_queries =[
-#                           {'name':'only+1', 
-#                            'raw_query':'''SELECT 
-#                                                changes.change_id, 
-#                                                changes.dest_project_name, 
-#                                                changes.owner_account_id, 
-#                                                changes.created_on, 
-#                                                MIN(patch_set_approvals.granted) AS granted_on, 
-#                                                patch_set_approvals.value, 
-#                                                patch_set_approvals.account_id 
-#                                            FROM 
-#                                                changes
-#                                            LEFT JOIN 
-#                                                patch_set_approvals 
-#                                            ON 
-#                                                changes.change_id=patch_set_approvals.change_id 
-#                                            WHERE 
-#                                                patch_set_approvals.value=1 
-#                                            GROUP BY
-#                                                patch_set_approvals.change_id
-#                                            ORDER BY 
-#                                                created_on;''',
-#                            'method':'sql',
-#                            'support_json': False,
-#                            'model': Changes,
-#                            'handler': 'parse_results_only_1',
-#                            'debug': True,
-#                            'recreate': True,
-#                            'headings': ['count','staff_count', 'wikipedian_count'],
-#                            },
-#                           
-#                           {'name':'no_review',
-#                            'raw_query': '''SELECT 
-#                                                changes.change_id, 
-#                                                changes.dest_project_name, 
-#                                                changes.owner_account_id, 
-#                                                changes.created_on, 
-#                                                patch_set_approvals.granted, 
-#                                                patch_set_approvals.value, 
-#                                                patch_set_approvals.account_id, 
-#                                                changes.status 
-#                                            FROM 
-#                                                changes 
-#                                            LEFT JOIN 
-#                                                patch_set_approvals 
-#                                            ON 
-#                                                changes.change_id=patch_set_approvals.change_id 
-#                                            WHERE 
-#                                                status !='A' -- EXCLUDE ABANDONDED CHANGE_SETS
-#                                            AND
-#                                                status !='M' -- EXCLUDED MERGED CHANGE_SETS
-#                                            AND NOT EXISTS 
-#                                                (SELECT * FROM changes WHERE change_id = patch_set_approvals.change_id) 
-#                                            ORDER BY 
-#                                                created_on;''', 
-#                            'method':'sql',
-#                            'support_json': False,
-#                            'model': Changes,
-#                            'handler': 'parse_results_no_review',
-#                            'debug': True,
-#                            'recreate': True,
-#                            'headings': ['count','staff_count', 'wikipedian_count'],
-#                            },
-#                           #{'name':'self_review','raw_query': '', 'method': 'sql'},
-#                           {
-#                            'name':'daily_commits',
-#                            'raw_query': '''SELECT 
-#                                                changes.dest_project_name, 
-#                                                changes.created_on, 
-#                                                COUNT(changes.change_id) 
-#                                            AS 
-#                                                commits 
-#                                            FROM 
-#                                                changes 
-#                                            WHERE 
-#                                                DATE(changes.created_on) >= DATE('2009-09-07') 
-#                                            AND 
-#                                                DATE(changes.created_on) <= DATE('2014-12-31')
-#                                            GROUP BY
-#                                                DATE(changes.created_on),
-#                                                changes.dest_project_name 
-#                                            ORDER BY changes.created_on''', 
-#                            'method': 'sql',
-#                            'support_json': False,
-#                            'model': Changes,
-#                            'handler':'parse_results_daily_commits',
-#                            'debug': True,
-#                            'recreate': True,
-#                            'headings': ['count'],
-#                            },
-#                            {
-#                             'name':'only+2',
-#                             'raw_query': '''SELECT 
-#                                                changes.change_id, 
-#                                                changes.dest_project_name, 
-#                                                changes.owner_account_id, 
-#                                                changes.created_on, 
-#                                                patch_set_approvals.granted AS granted_on, 
-#                                                patch_set_approvals.value, 
-#                                                patch_set_approvals.account_id 
-#                                            FROM 
-#                                                changes 
-#                                            INNER JOIN 
-#                                                patch_set_approvals 
-#                                            ON 
-#                                                changes.change_id=patch_set_approvals.change_id 
-#                                            WHERE 
-#                                                value=2 
-#                                            ORDER BY 
-#                                                created_on;''',
-#                            'method':'sql',
-#                            'support_json': False,
-#                            'model': Changes,
-#                            'handler': 'parse_results_only_1',
-#                            'debug': True,
-#                            'recreate': True,
-#                            'headings': ['count','staff_count', 'wikipedian_count'],
-#                             },
-#                           ] 
-#        for query in per_repo_queries:
-#            self.metrics[query.get('name')] = Query(self, **query)
+
             
     

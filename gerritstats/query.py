@@ -20,9 +20,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
 import sys
-import subprocess
 import logging
-import json
+
+import paramiko
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -34,23 +34,12 @@ class Query(object):
     '''
     The Query class
     '''
-    def __init__(self, gerrit, name, raw_query, method, support_json, model, handler, debug, recreate, headings):
-        self.raw = raw_query
+    def __init__(self, query, name, method, support_json, gerrit):
+        self.query = query
         self.name = name
         self.method = method
-        self.model = model
         self.support_json = support_json
-        self.handler = handler
-        self.debug = debug
-        self.recreate = recreate
-        self.headings = headings
-        if self.method == 'ssh':
-            if self.support_json:
-                self.full = 'ssh -p %s %s gerrit --format=%s %s' % (gerrit.port, gerrit.host, gerrit.format, self.raw)
-            else:
-                self.full = 'ssh -p %s %s gerrit  %s' % (gerrit.port, gerrit.host,  self.raw)
-        elif self.method == 'sql':
-            self.full = self.raw
+        self.gerrit = gerrit
             
     def __str__(self):
         print self.name
@@ -70,22 +59,24 @@ class Query(object):
         else:
             return results
         
-    def parse_json(self, output):
-        output = output.split('\n')
-        data = []
-        for obs in output:
-            try:
-                data.append(json.loads(obs))
-            except ValueError, e:
-                print e
-        return data
-
     def run_gerrit(self):
-        query = self.full.split(' ')
-        output, error = subprocess.Popen(query, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()  #[0]
+        ssh = paramiko.SSHClient()
+        ssh.load_host_keys('C:\\Users\\diederik.vanliere\\workspace\\.ssh\\id_rsa')
+        ssh.load_system_host_keys()
+        host_keys = ssh.get_host_keys()
+        host_keys.add('[gerrit.wikimedia.org]:29418','ssh-rsa', 'dce9687b991b27d0f9fdce6a2ebf92e1')
+        ssh.connect(self.gerrit.host, port=self.gerrit.port, username=self.gerrit.ssh_username)
+        stdin, stdout, stderr = ssh.exec_command(self.query)
+        data = stdout.readlines()
+        try:
+            error = stderr.readlines()
+        except IOError:
+            pass
+        
         if error:
             logging.warning('Could not retrieve list with Gerrit repositories. Error %s' % error.strip())
             logging.warning('Closing down gerrit-stats.')
             sys.exit(-1)
-        return output
+        return data
+
     

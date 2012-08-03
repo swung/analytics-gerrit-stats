@@ -50,6 +50,7 @@ class Repo(object):
         self.file_contents = StringIO()
         self.first_commit = GERRIT_CREATION_DATE
         self.future_date = date(2030,12,31)
+        
         self.metrics = ['time_first_review', 'time_plus2']
         self.suffixes = ['total', 'staff', 'volunteer']
         
@@ -63,9 +64,23 @@ class Repo(object):
         self.create_path()
         self.today = date.today()
         
-        self.parent = self.determine_parent(gerrit)
-        self.wikimedia_extension = self.is_wikimedia_extension()
-    
+        self.wmf_extension = self.is_wikimedia_extension()
+               
+        self.parents = [
+            dict(name='mediawiki',description='Aggregate statistics for the entire mediawiki code base (core, extensions, tools and packages.'),
+            dict(name='mediawiki/extensions',description='Aggregate statistics for all extensions.'),
+            dict(name='mediawiki/wmf_extensions', description='Aggregate statistics for extensions run by WMF.'),
+            dict(name='mediawiki/core_wmf_extensions', description='Aggregate statistics for extensions run by WMF and Mediawiki Core.'),
+            dict(name='operations',description='Aggregate statistics for all operations repositories.'),
+            dict(name='analytics',description='Aggregate statistics for all analytics repositories.'),
+            dict(name='integration',description='Aggregate statistics for all integration repositories.'),
+            dict(name='labs',description='Aggregate statistics for all labs repositories.'),
+            dict(name='translatewiki',description='Aggregate statistics for all translatewiki repositories.'),
+            dict(name='wikimedia',description='Aggregate statistics for all wikimedia repositories.'),
+        ]
+        
+        self.parent_repos = self.determine_parent(gerrit)
+            
     def __str__(self):
         return self.name
     
@@ -119,10 +134,16 @@ class Repo(object):
             return 'a'
     
     def determine_parent(self, gerrit):
-        for parent in gerrit.parents:
-            if self.name.startswith(parent):
-                return parent
-        return None    
+        parents = []
+#        if self.wmf_extension == True:
+#            parents.append('mediawiki/wmf_extensions')
+#            parents.append('mediawiki/core_wmf_extensions')
+#        if self.name == 'core':
+#            parents.append('mediawiki/core_wmf_extensions')
+        for repo in self.parents:
+            if self.name.startswith(repo['name']):
+                parents.append(repo['name'])
+        return parents   
 
     def determine_first_commit_date(self):
         dates = self.observations.keys()
@@ -146,33 +167,46 @@ class Repo(object):
             headings.append(heading)
         return ','.join(headings)
      
+    def get_review_start_date(self, commit, metric):
+        start_date = getattr(commit, 'created_on') if metric == 'time_first_review' else getattr(commit, 'time_first_review')
+        try:
+            return getattr(start_date, 'granted') 
+        except AttributeError:
+            return start_date
+        
+    def get_review_end_date(self, commit, metric):
+        try:
+            return getattr(commit, metric).granted
+        except AttributeError:
+            return getattr(commit, metric)
+    
     def increment(self, commit):
         obs = self.observations.get(commit.created_on.date(), Observation(commit.created_on, self))
         obs.commits+=1
-        self.observations[obs.date] = obs
-        if commit.status == 'A':
-            return
-        
         if commit.self_review == True:
             obs.self_review +=1
         self.observations[obs.date] = obs
         
+        if commit.status == 'A':
+            return
+        
         for metric in self.metrics:
-            start_date = getattr(commit, 'created_on') if metric == 'time_first_review' else getattr(commit, 'time_first_review')
-            end_date = getattr(commit, metric)
+            start_date = self.get_review_start_date(commit,metric)
+            end_date = self.get_review_end_date(commit, metric)
+            
             for date in self.daterange(start_date, end_date):
                 obs = self.observations.get(date.date(), Observation(date.date(), self))
                 for heading in product([metric], self.suffixes):
                     heading = self.merge_keys(heading[0], heading[1])
                     #print heading
-                    attr = getattr(obs, heading)
+                    value = getattr(obs, heading)
                     if heading.endswith('staff') and commit.author.staff == True:
-                        attr+=1
+                        value+=1
                     elif heading.endswith('volunteer') and commit.author.staff == False:
-                        attr+=1
+                        value+=1
                     elif heading.endswith('total'):
-                        attr+=1
-                    setattr(obs, heading, attr)
+                        value+=1
+                    setattr(obs, heading, value)
                 self.observations[obs.date] = obs
  
     def is_wikimedia_extension(self):
@@ -243,4 +277,4 @@ class Observation(object):
     def update(self, key, value):
         prop = getattr(self, key)
         prop += value
-    
+        setattr(self, key, prop)

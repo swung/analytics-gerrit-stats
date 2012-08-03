@@ -43,13 +43,17 @@ ch.setFormatter(formatter)
 logger.addHandler(ch)
 
 
-def create_aggregate_dataset(repos):
+def create_aggregate_dataset(repos, ):
     logging.info('Creating datasets for parent repositories.')
     for name, repo in repos.iteritems():
-        if repo.parent:
-            parent_repo = repos.get(repo.parent)
+        if name == 'mediawiki/core_wmf_extensions':
+            print 'break'
+        for parent in repo.parents:
+            parent_repo = repos.get(parent)
             if parent_repo:
-                repos[parent_repo.name] = merge(parent_repo, repo) 
+                repos[parent_repo.name] = merge(parent_repo, repo)
+            else:
+                logging.warn('Parent repo %s does not exist, while repo %s expects there to be a parent repo.' % (parent, name))
     return repos
 
 
@@ -107,6 +111,7 @@ def parse_commandline():
     parser.add_argument('--datasets', help='Specify the absolute path to store the gerrit-stats datasets.', required=True)
     parser.add_argument('--recreate', help='Delete all existing datafiles and datasources and recreate them from scratch. This needs to be done whenever a new metric is added.', action='store_true', default=False)
     parser.add_argument('--toolkit', help='Specify the visualization library you want to use. Valid choices are: dygraphs and d3.', action='store', default='d3')
+    parser.add_argument('--ssh-username', help='Specify your SSH username if your username on your local box dev is different then the one you use on the remote box.', action='store', required=False)
     return parser.parse_args()
 
 
@@ -170,7 +175,12 @@ def main():
     logging.info('Queries will always run up to \'yesterday\', so that we always have counts for full days.')
 
     args = (start_date, yesterday)
-    cur.execute(changes_query, args)
+    try:
+        cur.execute(changes_query, args)
+    except _mysql_exceptions.ProgrammingError, e:
+        logging.warning('Encountered problem while running db operation: %s' % e)
+        unsuccessfull_exit()
+    
     changes = cur.fetchall()
     logging.info('Successfully loaded commit data from database.')
     for change in changes:
@@ -182,22 +192,22 @@ def main():
     logging.info('Successfully loaded approval data from database.')
     for approval in approvals:
         review = Review(**approval)
-        commit = commits.get(review.change_id)
-        if commit:
-            commit.reviews['%s-%s' % (review.granted, review.value)] = review # review.granted by itself is not guaranteed to be unique.
-        else:
-            logging.info('Could not find a commit that belongs to change_id: %s written by %s (%s) on %s' % (review.change_id, review.reviewer.full_name, review.reviewer.account_id, review.granted))
+        #drop bot reviewers
+        if review.reviewer.human == True:
+            commit = commits.get(review.change_id)
+            if commit:
+                commit.reviews['%s-%s' % (review.granted, review.value)] = review # review.granted by itself is not guaranteed to be unique.
+            else:
+                logging.info('Could not find a commit that belongs to change_id: %s written by %s (%s) on %s' % (review.change_id, review.reviewer.full_name, review.reviewer.account_id, review.granted))
                 
     
     for commit in commits.itervalues():
+        #if commit.dest_project_name.find('core') >-1:
+        #    print 'break'
         commit.is_all_positive_reviews()
-        commit.is_self_reviewed()
         commit.calculate_wait()
+        commit.is_self_reviewed()
         
-#        if commit.status != 'n':
-#            if commit.time_first_review.date() == date.today() or commit.time_plus2 == date.today():
-#                for review in commit.reviews.itervalues():
-#                    print review.granted, review.value
         
         repo = gerrit.repos.get(commit.dest_project_name)
         if repo:
@@ -210,6 +220,8 @@ def main():
     create_aggregate_dataset(gerrit.repos)        
     
     for repo in gerrit.repos.itervalues():
+        if repo.name.find('core') > -1:
+            print 'break'
         repo.fill_in_missing_days()
         repo.create_headings()
         repo.prune_observations()

@@ -23,7 +23,6 @@ from datetime import date
 
 GERRIT_CREATION_DATE = date(2011,9,7)
 
-
 changes_query = '''
                 SELECT 
                     *
