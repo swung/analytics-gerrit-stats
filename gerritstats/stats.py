@@ -40,7 +40,7 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 
 try: 
     ch = logging.StreamHandler(strm=sys.stdout)
-except:
+except TypeError:
     ch = logging.StreamHandler(stream=sys.stdout)
 ch.setLevel(logging.DEBUG)
 ch.setFormatter(formatter)
