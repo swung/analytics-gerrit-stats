@@ -38,7 +38,10 @@ logger.setLevel(logging.DEBUG)
 
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 
-ch = logging.StreamHandler(strm=sys.stdout)
+if sys.version_info[0] == 2 and sys.version_info[1] == 6: 
+    ch = logging.StreamHandler(strm=sys.stdout)
+else:
+    ch = logging.StreamHandler(stream=sys.stdout)
 ch.setLevel(logging.DEBUG)
 ch.setFormatter(formatter)
 logger.addHandler(ch)
