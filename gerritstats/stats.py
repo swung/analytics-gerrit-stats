@@ -38,9 +38,9 @@ logger.setLevel(logging.DEBUG)
 
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 
-if sys.version_info[0] == 2 and sys.version_info[1] == 6: 
+try: 
     ch = logging.StreamHandler(strm=sys.stdout)
-else:
+except:
     ch = logging.StreamHandler(stream=sys.stdout)
 ch.setLevel(logging.DEBUG)
 ch.setFormatter(formatter)
