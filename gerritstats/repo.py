@@ -42,14 +42,16 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 
 
 class Repo(object):
-    def __init__(self, name, description, gerrit):
+    def __init__(self, name, description, gerrit, is_parent=False):
         self.description = description
         self.name = name
+        self.gerrit = gerrit
         self.observations = OrderedDict()
         self.headings = OrderedDict(date='date')
         self.file_contents = StringIO()
         self.first_commit = GERRIT_CREATION_DATE
         self.future_date = date(2030,12,31)
+        self.is_parent = is_parent
         
         self.metrics = ['time_first_review', 'time_plus2']
         self.suffixes = ['total', 'staff', 'volunteer']
@@ -65,20 +67,7 @@ class Repo(object):
         self.today = date.today()
         
         self.wmf_extension = self.is_wikimedia_extension()
-               
-        self.parents = [
-            dict(name='mediawiki',description='Aggregate statistics for the entire mediawiki code base (core, extensions, tools and packages.'),
-            dict(name='mediawiki/extensions',description='Aggregate statistics for all extensions.'),
-            dict(name='mediawiki/wmf_extensions', description='Aggregate statistics for extensions run by WMF.'),
-            dict(name='mediawiki/core_wmf_extensions', description='Aggregate statistics for extensions run by WMF and Mediawiki Core.'),
-            dict(name='operations',description='Aggregate statistics for all operations repositories.'),
-            dict(name='analytics',description='Aggregate statistics for all analytics repositories.'),
-            dict(name='integration',description='Aggregate statistics for all integration repositories.'),
-            dict(name='labs',description='Aggregate statistics for all labs repositories.'),
-            dict(name='translatewiki',description='Aggregate statistics for all translatewiki repositories.'),
-            dict(name='wikimedia',description='Aggregate statistics for all wikimedia repositories.'),
-        ]
-        
+        self.extension = self.is_extension()
         self.parent_repos = self.determine_parent(gerrit)
             
     def __str__(self):
@@ -135,14 +124,21 @@ class Repo(object):
     
     def determine_parent(self, gerrit):
         parents = []
-#        if self.wmf_extension == True:
-#            parents.append('mediawiki/wmf_extensions')
-#            parents.append('mediawiki/core_wmf_extensions')
-#        if self.name == 'core':
-#            parents.append('mediawiki/core_wmf_extensions')
-        for repo in self.parents:
-            if self.name.startswith(repo['name']):
-                parents.append(repo['name'])
+        if self.extension == True:
+            parents.append('mediawiki/all_extensions')
+        if self.wmf_extension == True:
+            parents.append('mediawiki/wmf_extensions')
+            parents.append('mediawiki/core_wmf_extensions')
+        if self.name == 'mediawiki/core':
+            parents.append('mediawiki/core_wmf_extensions')
+        
+        if self.is_parent == False:
+            for repo in self.gerrit.parents:
+                if self.name != repo['name']:
+                    if self.name.startswith(repo['name']):
+                        parents.append(repo['name'])
+                else:
+                    self.is_parent = True
         return parents   
 
     def determine_first_commit_date(self):
@@ -212,6 +208,12 @@ class Repo(object):
     def is_wikimedia_extension(self):
         shortname = self.name.split('/')[-1]
         if shortname in extensions:
+            return True
+        else:
+            return False
+
+    def is_extension(self):
+        if self.name.find('/extensions') > -1:
             return True
         else:
             return False

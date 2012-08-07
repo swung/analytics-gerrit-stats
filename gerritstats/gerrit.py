@@ -52,6 +52,18 @@ class Gerrit(object):
         self.ssh_username = args.ssh_username
         self.repos = {}
         self.ignore_repos = ['test', 'private']
+        self.parents = [
+            dict(name='mediawiki',description='Aggregate statistics for the entire mediawiki code base (core, extensions, tools and packages.'),
+            dict(name='mediawiki/all_extensions',description='Aggregate statistics for all extensions.'),
+            dict(name='mediawiki/wmf_extensions', description='Aggregate statistics for extensions run by WMF.'),
+            dict(name='mediawiki/core_wmf_extensions', description='Aggregate statistics for extensions run by WMF and Mediawiki Core.'),
+            dict(name='operations',description='Aggregate statistics for all operations repositories.'),
+            dict(name='analytics',description='Aggregate statistics for all analytics repositories.'),
+            dict(name='integration',description='Aggregate statistics for all integration repositories.'),
+            dict(name='labs',description='Aggregate statistics for all labs repositories.'),
+            dict(name='translatewiki',description='Aggregate statistics for all translatewiki repositories.'),
+            dict(name='wikimedia',description='Aggregate statistics for all wikimedia repositories.'),
+        ]
         self.is_valid_path(self.yaml_location)
         self.is_valid_path(self.csv_location)
         self.is_valid_path(self.my_cnf)
@@ -92,7 +104,6 @@ class Gerrit(object):
         else:
             logging.info('%s is a valid path.' % path)
             
-
     def fetch_repos(self):
         logging.info('Fetching list of all Gerrit repositories')
         repos_list = self.list_repos()
@@ -114,8 +125,7 @@ class Gerrit(object):
         
         for repo in self.parents:
             if repo['name'] not in self.repos:
-                self.repos[repo['name']] = Repo(repo['name'], repo['description'], self)
-
+                self.repos[repo['name']] = Repo(repo['name'], repo['description'], self, is_parent=True)
 
     def list_repos(self):
         list_repo_query = {

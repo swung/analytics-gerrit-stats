@@ -69,9 +69,7 @@ class Developer(object):
 
     def fix_email(self):
         if self.preferred_email == None:
-            self.preferred_email = 'No email address'
-
-            
+            self.preferred_email = 'No email address'            
         
 
 class Commit(object):
@@ -148,15 +146,15 @@ class Commit(object):
                 self.time_first_review = self.reviews.get(min(dates))
                 self.time_plus2 = Review(granted=self.created_on) #by setting the date to creation date, the metric does not get biased. 
             
-        if self.time_plus2 == None: 
-            print 'break'
-        if type(self.time_plus2) == datetime:
-            if self.reviews != {}:
-                if self.time_plus2.year ==2012 and self.time_plus2.month==7 and self.time_plus2.day == 27:
-                    print self.change_id
-        else:
-            if self.time_plus2.granted.year ==2012 and self.time_plus2.granted.month==7 and self.time_plus2.granted.day == 27:
-                print self.change_id
+#        if self.time_plus2 == None: 
+#            print 'break'
+#        if type(self.time_plus2) == datetime:
+#            if self.reviews != {}:
+#                if self.time_plus2.year ==2012 and self.time_plus2.month==8 and self.time_plus2.day == 6:
+#                    print self.change_id
+#        else:
+#            if self.time_plus2.granted.year ==2012 and self.time_plus2.granted.month==8 and self.time_plus2.granted.day == 6:
+#                print self.change_id
         
     
 class Review(object):

@@ -27,6 +27,7 @@ import cPickle
 import logging
 
 from datetime import datetime, date, timedelta
+from copy import deepcopy
 
 from gerrit import Gerrit
 from commit import Review, Commit
@@ -43,22 +44,26 @@ ch.setFormatter(formatter)
 logger.addHandler(ch)
 
 
-def create_aggregate_dataset(repos, ):
+def create_aggregate_dataset(gerrit):
     logging.info('Creating datasets for parent repositories.')
-    for name, repo in repos.iteritems():
-        if name == 'mediawiki/core_wmf_extensions':
-            print 'break'
-        for parent in repo.parents:
-            parent_repo = repos.get(parent)
-            if parent_repo:
-                repos[parent_repo.name] = merge(parent_repo, repo)
-            else:
-                logging.warn('Parent repo %s does not exist, while repo %s expects there to be a parent repo.' % (parent, name))
-    return repos
+    for name, repo in gerrit.repos.iteritems():
+        if repo.is_parent == False:
+            for parent in repo.parent_repos:
+                parent_repo = gerrit.repos.get(parent)
+                if parent_repo:
+                    if parent_repo.name == repo.name:
+                        
+                        print 'Parent == child: %s: %s' % (parent_repo.name, repo.name)
+                        sys.exit(-1)
+                    gerrit.repos[parent_repo.name] = merge(parent_repo, repo)
+                else:
+                    logging.warn('Parent repo %s does not exist, while repo %s expects there to be a parent repo.' % (parent, name))
+    return gerrit
 
 
 def create_path(location, filename):
     return os.path.join(location, filename)
+
 
 def init_db(my_cnf):
     try:
@@ -95,10 +100,11 @@ def load_previous_results(location, start_date):
         commits = load(location, filename)
     return commits
 
+
 def merge(parent_repo, repo):
     for date, obs in repo.observations.iteritems():
         if date not in parent_repo.observations:
-            parent_repo.observations[date] = obs
+            parent_repo.observations[date] = deepcopy(obs)
         else:
             for key, value in obs.iteritems():
                 parent_repo.observations[date].update(key, value)
@@ -202,8 +208,6 @@ def main():
                 
     
     for commit in commits.itervalues():
-        #if commit.dest_project_name.find('core') >-1:
-        #    print 'break'
         commit.is_all_positive_reviews()
         commit.calculate_wait()
         commit.is_self_reviewed()
@@ -217,11 +221,9 @@ def main():
     
     logging.info('Successfully parsed commit data.')
     # create datasets that are collections of repositories
-    create_aggregate_dataset(gerrit.repos)        
+    create_aggregate_dataset(gerrit)        
     
     for repo in gerrit.repos.itervalues():
-        if repo.name.find('core') > -1:
-            print 'break'
         repo.fill_in_missing_days()
         repo.create_headings()
         repo.prune_observations()

@@ -61,7 +61,7 @@ class Query(object):
         
     def run_gerrit(self):
         ssh = paramiko.SSHClient()
-        ssh.load_host_keys('C:\\Users\\diederik.vanliere\\workspace\\.ssh\\id_rsa')
+        #ssh.load_host_keys('C:\\Users\\diederik.vanliere\\workspace\\.ssh\\id_rsa')
         ssh.load_system_host_keys()
         host_keys = ssh.get_host_keys()
         host_keys.add('[gerrit.wikimedia.org]:29418','ssh-rsa', 'dce9687b991b27d0f9fdce6a2ebf92e1')
