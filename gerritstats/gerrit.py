@@ -92,8 +92,10 @@ class Gerrit(object):
                     logging.info('Successfully removed %s' % source)
                 #shutil.rmtree('data/datafiles')
                 #shutil.rmtree('data/datasources')
-            except OSError:
-                pass
+            except OSError, e:
+                logging.warning('Trying to remove %s but get error %s' % (source, e))
+                logging.error('Leaving gerrit-stats unsuccesfully.')
+                sys.exit(-1)
 
     def is_valid_path(self, path):
         if path.startswith('~'):
