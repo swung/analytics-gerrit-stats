@@ -84,7 +84,7 @@ class Repo(object):
         for date in dates:
             observation = self.observations.get(date)
             values = observation.get_values()
-            values.insert(0, date)          
+            values.insert(0, date.strftime('%Y/%m/%d'))          
             values = ','.join(['%s' % value for value in values])
             self.file_contents.write(values)
             self.file_contents.write('\n')
