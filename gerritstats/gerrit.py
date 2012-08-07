@@ -84,11 +84,11 @@ class Gerrit(object):
 
     def remove_old_datasets(self):
         if self.recreate:
-            sources = ['data/datafiles', 'data/datasources']
+            sources = [self.csv_location, self.yaml_location]
 
             for source in sources:
                 for filename in self.walk_directory(source, '*.*'):
-                    logging.info('Trying to remove %s' % (os.path.join(source.filename)))
+                    logging.info('Removing %s...' % (os.path.join(source, filename)))
                     try:
                         os.unlink(filename)
                     except OSError, e:
@@ -104,7 +104,12 @@ class Gerrit(object):
         if path.startswith('~'):
             path = os.path.expanduser(path)
         if os.path.isabs(path) == False:
-            raise Exception("Please specify an absolute path.")
+            logging.warning('%s is not an absolute path, please specify an absolute path.' % path)
+            logging.error('Leaving gerrit-stats unsuccesfully.')
+            sys.exit(-1)
+        elif os.path.exists(path) == False:
+            logging.warning('%s does not exist, make sure that the file exists.' % path)
+            logging.error('Leaving gerrit-stats unsuccesfully.')
             sys.exit(-1)
         else:
             logging.info('%s is a valid path.' % path)
