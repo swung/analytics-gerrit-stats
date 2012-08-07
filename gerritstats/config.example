@@ -1,0 +1,1 @@
+/usr/bin/python /a/gerrit-stats/gerrit-stats/gerritstats/stats.py --dataset /a/gerrit-stats/data --toolkit dygraphs --recreate | tee -a /a/gerrit-stats/gerrit-stats.log
