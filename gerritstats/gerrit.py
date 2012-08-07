@@ -85,17 +85,20 @@ class Gerrit(object):
     def remove_old_datasets(self):
         if self.recreate:
             sources = ['data/datafiles', 'data/datasources']
-            try:
-                for source in sources:
-                    for filename in self.walk_directory(source, '*.*'):
+
+            for source in sources:
+                for filename in self.walk_directory(source, '*.*'):
+                    logging.info('Trying to remove %s' % (os.path.join(source.filename)))
+                    try:
                         os.unlink(filename)
-                    logging.info('Successfully removed %s' % source)
+                    except OSError, e:
+                        logging.warning('Failed to remove %s but get error %s' % (os.path.join(source, filename), e))
+                        logging.error('Leaving gerrit-stats unsuccesfully.')
+                        sys.exit(-1)        
+                logging.info('Successfully removed %s' % source)
                 #shutil.rmtree('data/datafiles')
                 #shutil.rmtree('data/datasources')
-            except OSError, e:
-                logging.warning('Trying to remove %s but get error %s' % (source, e))
-                logging.error('Leaving gerrit-stats unsuccesfully.')
-                sys.exit(-1)
+            
 
     def is_valid_path(self, path):
         if path.startswith('~'):
