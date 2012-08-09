@@ -212,7 +212,7 @@ def main():
                 logging.info('Could not find a commit that belongs to change_id: %s written by %s (%s) on %s' % (review.change_id, review.reviewer.full_name, review.reviewer.account_id, review.granted))
     
     for commit in commits.itervalues():
-        if  commit.change_id == 8028 or commit.change_id == 3435:
+        if commit.change_id == 12883:
             print 'break'
         commit.is_all_positive_reviews()
         commit.calculate_wait()

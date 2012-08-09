@@ -113,14 +113,25 @@ class Commit(object):
         else:
             self.all_positive_reviews = False
     
+    def get_first_review_by_review_value(self, value):
+        #self.reviews is an ordereddict that is sorted by timestamp, so the first hit is the oldest. 
+        for review in self.reviews.itervalues():
+            if review.value == value:
+                return review
+        #this commit does not have a review with value 'value', return None
+        return None
+        
+    
     def calculate_wait(self):
         try:
-            key = self.reviews.keys()[-1]
+            key = self.reviews.get(max(self.reivews.keys()))
             most_recent_review = self.reviews.get(key)
             last_updated_on = most_recent_review.granted 
         except (IndexError, AttributeError):
             last_updated_on = self.last_updated_on
         
+        if len(self.reviews.keys()) > 6:
+            print 'lots of reviews'
         if self.reviews == {}:
             #there were no reviews
             if self.status == 'M' or self.status == 'A' or self.status == 'd':
@@ -128,25 +139,27 @@ class Commit(object):
                 # commit has been merged without any reviews.
                 self.time_first_review = Review(granted=last_updated_on)
                 self.time_plus2 = Review(granted=last_updated_on)
+            else:
+                self.time_first_review = Review(granted=datetime.today())
+                self.time_plus2 = Review(granted=datetime.today())
         else:
-            reviews = {}
-            dates = []
-            for key, review in self.reviews.iteritems():
-                
-                reviews[review.value] = review
-                dates.append(key)
-            
-            self.merge_review = reviews.get(2, None)
+            self.merge_review = self.get_first_review_by_review_value(2)
 
             if self.merged:
-                self.time_first_review = self.reviews.get(min(dates))
-                self.time_plus2 = reviews.get(2, Review(granted=self.last_updated_on))
+                self.time_first_review = self.reviews.get(min(self.reviews.keys()))
+                if self.merge_review:
+                    self.time_plus2 = self.merge_review
+                else:
+                    self.time_plus2 = Review(granted=last_updated_on) #there is no actual review belonging to the merge, create fake review
             else:
-                self.time_first_review = self.reviews.get(min(dates))
-                self.time_plus2 = Review(granted=datetime.today()) 
+                self.time_first_review = self.reviews.get(min(self.reviews.keys()))
+                if self.all_positive_reviews == True:
+                    self.time_plus2 = Review(granted=datetime.today()) #commit is ready to be merged, still waiting. 
+                else:
+                    self.time_plus2 = Review(granted=self.created_on)   #this commit cannot be merged yet, and is waiting for improvements, hence should not add to backlog.
             
-#        if self.time_plus2 == None: 
-#            print 'break'
+        if self.time_plus2 == None: 
+            print 'break'
 #        if type(self.time_plus2) == datetime:
 #            if self.reviews != {}:
 #                if self.time_plus2.year ==2012 and self.time_plus2.month==8 and self.time_plus2.day == 6:
