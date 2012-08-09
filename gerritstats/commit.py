@@ -116,7 +116,7 @@ class Commit(object):
     def get_first_review_by_review_value(self, value):
         #self.reviews is an ordereddict that is sorted by timestamp, so the first hit is the oldest. 
         for review in self.reviews.itervalues():
-            if review.value == value:
+            if review.value == value and review.reviewer.human == True:
                 return review
         #this commit does not have a review with value 'value', return None
         return None

@@ -201,13 +201,11 @@ def main():
     logging.info('Successfully loaded approval data from database.')
     for approval in approvals:
         review = Review(**approval)
-        #drop bot reviewers
-        if review.reviewer.human == True:
-            commit = commits.get(review.change_id)
-            if commit:
-                commit.reviews['%s-%s' % (review.granted, review.value)] = review # review.granted by itself is not guaranteed to be unique.
-            else:
-                logging.info('Could not find a commit that belongs to change_id: %s written by %s (%s) on %s' % (review.change_id, review.reviewer.full_name, review.reviewer.account_id, review.granted))
+        commit = commits.get(review.change_id)
+        if commit:
+            commit.reviews['%s-%s' % (review.granted, review.value)] = review # review.granted by itself is not guaranteed to be unique.
+        else:
+            logging.info('Could not find a commit that belongs to change_id: %s written by %s (%s) on %s' % (review.change_id, review.reviewer.full_name, review.reviewer.account_id, review.granted))
     
     for commit in commits.itervalues():
         if commit.change_id == 11531:
