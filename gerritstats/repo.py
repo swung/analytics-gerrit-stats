@@ -107,7 +107,10 @@ class Repo(object):
                     pass
     
     def daterange(self, start_date, end_date):
-        for n in range((end_date - start_date).days):
+        dt = ((end_date - start_date).days) +1 #simple way of rounding number of days. 
+        if (end_date - start_date).days < -1:
+            print 'break ahargh'
+        for n in range(dt):
             yield start_date + timedelta(n)
     
     def determine_directory(self, location):

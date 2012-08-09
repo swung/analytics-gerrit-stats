@@ -112,7 +112,6 @@ class Commit(object):
             self.all_positive_reviews = True
         else:
             self.all_positive_reviews = False
-        
     
     def calculate_wait(self):
         try:
@@ -144,7 +143,7 @@ class Commit(object):
                 self.time_plus2 = reviews.get(2, Review(granted=self.last_updated_on))
             else:
                 self.time_first_review = self.reviews.get(min(dates))
-                self.time_plus2 = Review(granted=self.created_on) #by setting the date to creation date, the metric does not get biased. 
+                self.time_plus2 = Review(granted=datetime.today()) 
             
 #        if self.time_plus2 == None: 
 #            print 'break'
@@ -168,7 +167,6 @@ class Review(object):
 
     def __str__(self):
         return '%s:%s' % (self.change_id, self.value)
-
 
 def main():
     pass

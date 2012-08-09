@@ -105,6 +105,8 @@ def load_previous_results(location, start_date):
 
 
 def merge(parent_repo, repo):
+    if parent_repo.name == 'mediawiki':
+        print parent_repo.name, repo.name
     for date, obs in repo.observations.iteritems():
         if date not in parent_repo.observations:
             parent_repo.observations[date] = deepcopy(obs)
@@ -208,13 +210,13 @@ def main():
                 commit.reviews['%s-%s' % (review.granted, review.value)] = review # review.granted by itself is not guaranteed to be unique.
             else:
                 logging.info('Could not find a commit that belongs to change_id: %s written by %s (%s) on %s' % (review.change_id, review.reviewer.full_name, review.reviewer.account_id, review.granted))
-                
     
     for commit in commits.itervalues():
+        if  commit.change_id == 8028 or commit.change_id == 3435:
+            print 'break'
         commit.is_all_positive_reviews()
         commit.calculate_wait()
         commit.is_self_reviewed()
-        
         
         repo = gerrit.repos.get(commit.dest_project_name)
         if repo:
