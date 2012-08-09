@@ -89,8 +89,8 @@ class Commit(object):
         self.reviews = OrderedDict()
         self.self_review = False
         self.repo_has_review = True
-        self.time_first_review = datetime.today()  #wait time between creation and first review
-        self.time_plus2 = datetime.today()  #wait time between first plus 1 and plus 2
+        self.waiting_first_review = datetime.today()  #wait time between creation and first review
+        self.waiting_plus2 = datetime.today()  #wait time between first plus 1 and plus 2
         self.merge_review = None #this will become an instance of Review
         self.all_positive_reviews = None
         self.author = Developer(**kwargs)  #this will become an instance of Developer
@@ -122,44 +122,82 @@ class Commit(object):
         return None
         
     
-    def calculate_wait(self):
+    def get_first_review(self):
+        dates = self.reviews.keys()
         try:
-            key = self.reviews.get(max(self.reivews.keys()))
-            most_recent_review = self.reviews.get(key)
-            last_updated_on = most_recent_review.granted 
-        except (IndexError, AttributeError):
-            last_updated_on = self.last_updated_on
-        
-        #if len(self.reviews.keys()) > 6:
-        #    print 'lots of reviews'
-        if self.reviews == {}:
-            #there were no reviews
-            if self.status == 'M' or self.status == 'A' or self.status == 'd':
-                # edge case 
-                # commit has been merged without any reviews.
-                self.time_first_review = Review(granted=last_updated_on)
-                self.time_plus2 = Review(granted=last_updated_on)
-            else:
-                self.time_first_review = Review(granted=datetime.today())
-                self.time_plus2 = Review(granted=datetime.today())
+            first_date = min(dates)
+            return self.reviews.get(first_date)
+        except ValueError:
+            return None
+    
+    
+    def calculate_wait_plus2(self):
+        if self.merged and self.reviews != {}:
+            #commit was merged with reviews
+            try:
+                review = self.get_first_review_by_review_value(2)
+                if not review:
+                    #commit was merged but there was no +2 made by a human developer. 
+                    review = Review(granted=self.last_updated_on)
+            except (AttributeError, ValueError):
+                #although there are reviews, there is no +2 review
+                #second guess the merge date by using last_updated_on field
+                review = Review(granted=self.last_updated_on)
+        elif self.merged and self.reviews == {}:
+            #commit was merged but there were no reviews
+            review = Review(granted=self.last_updated_on)
         else:
-            self.merge_review = self.get_first_review_by_review_value(2)
-
-            if self.merged:
-                self.time_first_review = self.reviews.get(min(self.reviews.keys()))
-                if self.merge_review:
-                    self.time_plus2 = self.merge_review
-                else:
-                    self.time_plus2 = Review(granted=last_updated_on) #there is no actual review belonging to the merge, create fake review
+            #commit is not merged, but all the reviews are positive
+            if self.all_positive_reviews == True:
+                review = Review(granted=datetime.today())
             else:
-                self.time_first_review = self.reviews.get(min(self.reviews.keys()))
-                if self.all_positive_reviews == True:
-                    self.time_plus2 = Review(granted=datetime.today()) #commit is ready to be merged, still waiting. 
-                else:
-                    self.time_plus2 = Review(granted=self.created_on)   #this commit cannot be merged yet, and is waiting for improvements, hence should not add to backlog.
-            
-        if self.time_plus2 == None: 
-            print 'break'
+                review = Review(granted=datetime.today())
+        self.waiting_plus2 = review
+    
+    def calculate_wait_first_review(self):
+        if self.reviews == {}:
+            if self.merged:
+                review = Review(granted=self.last_updated_on)
+            else:
+            #there are no reviews and the commit is not merged
+                review = Review(granted=datetime.today())
+        else:
+            review = self.get_first_review()
+        
+        self.waiting_first_review = review
+        
+#        try:
+#                last_updated_on = self.get_first_review_by_review_value(2).granted
+#            except (AttributeError, ValueError):
+#                last_updated_on = self.last_updated_on
+#        elif self.merged and self.reviews == {}:
+#            last_updated_on = self.last_updated_on
+#        else:
+#            
+#        
+#        if self.reviews == {}:
+#            #there were no reviews
+#            # commit has been merged without any reviews.
+#            self.waiting_first_review = self.reviews.get(min(self.reviews.keys()))
+#            self.waiting_plus2 = Review(granted=last_updated_on)
+#        else:
+#            self.merge_review = self.get_first_review_by_review_value(2)
+#
+#            if self.merged:
+#                self.time_first_review = self.reviews.get(min(self.reviews.keys()))
+#                if self.merge_review:
+#                    self.time_plus2 = self.merge_review
+#                else:
+#                    self.time_plus2 = Review(granted=last_updated_on) #there is no actual review belonging to the merge, create fake review
+#            else:
+#                self.time_first_review = self.reviews.get(min(self.reviews.keys()))
+#                if self.all_positive_reviews == True:
+#                    self.time_plus2 = Review(granted=datetime.today()) #commit is ready to be merged, still waiting. 
+#                else:
+#                    self.time_plus2 = Review(granted=self.created_on)   #this commit cannot be merged yet, and is waiting for improvements, hence should not add to backlog.
+#            
+#        if self.time_plus2 == None: 
+#            print 'break'
 #        if type(self.time_plus2) == datetime:
 #            if self.reviews != {}:
 #                if self.time_plus2.year ==2012 and self.time_plus2.month==8 and self.time_plus2.day == 6:

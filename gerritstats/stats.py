@@ -201,19 +201,21 @@ def main():
     logging.info('Successfully loaded approval data from database.')
     for approval in approvals:
         review = Review(**approval)
-        commit = commits.get(review.change_id)
-        if commit:
-            commit.reviews['%s-%s' % (review.granted, review.value)] = review # review.granted by itself is not guaranteed to be unique.
-        else:
-            logging.info('Could not find a commit that belongs to change_id: %s written by %s (%s) on %s' % (review.change_id, review.reviewer.full_name, review.reviewer.account_id, review.granted))
+        #drop bot reviewers
+        if review.reviewer.human == True:
+            commit = commits.get(review.change_id)
+            if commit:
+                commit.reviews['%s-%s' % (review.granted, review.value)] = review # review.granted by itself is not guaranteed to be unique.
+            else:
+                logging.info('Could not find a commit that belongs to change_id: %s written by %s (%s) on %s' % (review.change_id, review.reviewer.full_name, review.reviewer.account_id, review.granted))
     
     for commit in commits.itervalues():
-        if commit.change_id == 11531:
-            print 'break'
-        if commit.created_on.year == 2012 and commit.created_on.month == 6 and commit.created_on.day ==14:
+        #if commit.last_updated_on.year == 2012 and commit.last_updated_on.month == 6 and commit.last_updated_on.day ==15:
+        if commit.change_id == 3435:# or commit.change_id == 8028 or commit.change_id == 4658:
             print commit
         commit.is_all_positive_reviews()
-        commit.calculate_wait()
+        commit.calculate_wait_first_review()
+        commit.calculate_wait_plus2()
         commit.is_self_reviewed()
         
         repo = gerrit.repos.get(commit.dest_project_name)

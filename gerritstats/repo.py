@@ -53,7 +53,7 @@ class Repo(object):
         self.future_date = date(2030,12,31)
         self.is_parent = is_parent
         
-        self.metrics = ['time_first_review', 'time_plus2']
+        self.metrics = ['waiting_first_review', 'waiting_plus2']
         self.suffixes = ['total', 'staff', 'volunteer']
         
         self.filename = ('%s.csv' % (self.determine_filename()))
@@ -167,7 +167,7 @@ class Repo(object):
         return ','.join(headings)
      
     def get_review_start_date(self, commit, metric):
-        start_date = getattr(commit, 'created_on') if metric == 'time_first_review' else getattr(commit, 'time_first_review')
+        start_date = getattr(commit, 'created_on') if metric == 'waiting_first_review' else getattr(commit, 'waiting_first_review')
         try:
             return getattr(start_date, 'granted') 
         except AttributeError:
@@ -177,21 +177,27 @@ class Repo(object):
         try:
             return getattr(commit, metric).granted
         except AttributeError:
-            return getattr(commit, metric)
-    
-    def increment(self, commit):
+            return getattr(commit, metric)  
+        
+    def increment_number_of_commits(self, commit):
         obs = self.observations.get(commit.created_on.date(), Observation(commit.created_on, self))
         obs.commits+=1
         if commit.self_review == True:
             obs.self_review +=1
         self.observations[obs.date] = obs
-        
+    
+    def increment(self, commit):
+        self.increment_number_of_commits(commit)
         if commit.status == 'A':
             return
         
         for metric in self.metrics:
-            start_date = self.get_review_start_date(commit,metric)
+            start_date = self.get_review_start_date(commit, metric)
             end_date = self.get_review_end_date(commit, metric)
+            if end_date == None:
+                print 'should not happen'
+            if start_date > end_date:
+                print 'should not happen'
             
             for date in self.daterange(start_date, end_date):
                 obs = self.observations.get(date.date(), Observation(date.date(), self))
