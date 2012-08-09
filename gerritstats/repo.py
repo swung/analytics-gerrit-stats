@@ -107,9 +107,9 @@ class Repo(object):
                     pass
     
     def daterange(self, start_date, end_date):
-        dt = ((end_date - start_date).days) +1 #simple way of rounding number of days. 
-        if (end_date - start_date).days < -1:
-            print 'break ahargh'
+        dt = ((end_date - start_date).days)
+        if dt > 0: 
+            dt =+1 #simple way of rounding number of days. 
         for n in range(dt):
             yield start_date + timedelta(n)
     

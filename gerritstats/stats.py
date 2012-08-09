@@ -105,8 +105,6 @@ def load_previous_results(location, start_date):
 
 
 def merge(parent_repo, repo):
-    if parent_repo.name == 'mediawiki':
-        print parent_repo.name, repo.name
     for date, obs in repo.observations.iteritems():
         if date not in parent_repo.observations:
             parent_repo.observations[date] = deepcopy(obs)
@@ -212,8 +210,10 @@ def main():
                 logging.info('Could not find a commit that belongs to change_id: %s written by %s (%s) on %s' % (review.change_id, review.reviewer.full_name, review.reviewer.account_id, review.granted))
     
     for commit in commits.itervalues():
-        if commit.change_id == 12883:
+        if commit.change_id == 11531:
             print 'break'
+        if commit.created_on.year == 2012 and commit.created_on.month == 6 and commit.created_on.day ==14:
+            print commit
         commit.is_all_positive_reviews()
         commit.calculate_wait()
         commit.is_self_reviewed()

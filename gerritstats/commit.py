@@ -130,8 +130,8 @@ class Commit(object):
         except (IndexError, AttributeError):
             last_updated_on = self.last_updated_on
         
-        if len(self.reviews.keys()) > 6:
-            print 'lots of reviews'
+        #if len(self.reviews.keys()) > 6:
+        #    print 'lots of reviews'
         if self.reviews == {}:
             #there were no reviews
             if self.status == 'M' or self.status == 'A' or self.status == 'd':
