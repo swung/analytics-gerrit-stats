@@ -210,7 +210,8 @@ def main():
     
     for commit in commits.itervalues():
 #        if commit.change_id == 10127 or commit.change_id == 10125 or commit.change_id == 9654 or commit.change_id == 9549 or commit.change_id == 9420 or commit.change_id == 9273 or commit.change_id == 9259 or commit.change_id == 9141 or commit.change_id ==  8937 or commit.change_id == 8928 or commit.change_id == 8728 or commit.change_id == 7608 or commit.change_id == 7149 or commit.change_id == 10129: # or commit.change_id == 4658:
-#            print commit
+        if commit.change_id ==7826:
+            print commit
         commit.is_all_positive_reviews()
         commit.calculate_wait_first_review()
         commit.calculate_wait_plus2()
@@ -227,6 +228,11 @@ def main():
     create_aggregate_dataset(gerrit)        
     
     for repo in gerrit.repos.itervalues():
+        if repo.name == 'mediawiki':
+            dates = repo.observations.keys()
+            dates.sort()
+            for dt in dates:
+                print dt, repo.observations[dt].commit_ids
         repo.fill_in_missing_days()
         repo.create_headings()
         repo.prune_observations()

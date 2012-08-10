@@ -207,6 +207,7 @@ class Repo(object):
             
             for date in self.daterange(start_date, end_date):
                 obs = self.observations.get(date.date(), Observation(date.date(), self))
+                obs.commit_ids.add(commit.change_id)
                 for heading in product([metric], self.suffixes):
                     heading = self.merge_keys(heading[0], heading[1])
                     value = getattr(obs, heading)
@@ -258,7 +259,8 @@ class Observation(object):
         self.date = self.convert_to_date(date)
         self.commits = 0
         self.self_review = 0
-        self.ignore = ['touched', 'date', 'ignore']
+        self.commit_ids = set()
+        self.ignore = ['touched', 'date', 'ignore', 'commit_ids']
         for heading in repo.create_headings():
             setattr(self, heading, 0)
     
@@ -292,6 +294,10 @@ class Observation(object):
 
     def update(self, key, value):
         prop = getattr(self, key)
-        prop += value
+        if type(prop) == type(set()):
+            for val in value:
+                prop.add(val)
+        else:
+            prop += value
         setattr(self, key, prop)
         return self

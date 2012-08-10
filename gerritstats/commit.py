@@ -91,7 +91,7 @@ class Commit(object):
         self.repo_has_review = True
         self.waiting_first_review = datetime.today() - timedelta(days=1) #wait time between creation and first review
         self.waiting_plus2 = datetime.today() - timedelta(days=1)  #wait time between first plus 1 and plus 2
-        self.merge_review = self.get_merge_review() #this will become an instance of Review
+        self.merge_review = None #this will become an instance of Review
         self.all_positive_reviews = None
         self.author = Developer(**kwargs)  #this will become an instance of Developer
     
@@ -99,6 +99,7 @@ class Commit(object):
         return '%s:%s' %  (self.change_id, self.subject)
     
     def is_self_reviewed(self):
+        self.get_merge_review()
         if self.merged:
             try:
                 if self.owner_account_id == self.merge_review.account_id:
@@ -188,7 +189,7 @@ class Review(object):
         self.reviewer = Developer(**kwargs)
 
     def __str__(self):
-        return '%s:%s' % (self.change_id, self.value)
+        return '%s:%s:%s' % (self.change_id, self.patch_set_id, self.value)
 
 def main():
     pass
