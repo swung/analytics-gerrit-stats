@@ -20,7 +20,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 import os
 from cStringIO import StringIO
-from datetime import datetime
+from datetime import datetime, timedelta
 
 class YamlConfig(object):
     def __init__(self, gerrit, repo):
@@ -59,9 +59,9 @@ class YamlConfig(object):
         self.buffer.write('\n')
     
     def set_timespan(self):
-        today = datetime.today()
+        yesterday = datetime.today() - timedelta(days=1)
         self.buffer.write('timespan:\n')
-        self.buffer.write('    end: %s/%s/%s\n' % (today.year, today.month, today.day))
+        self.buffer.write('    end: %s/%s/%s\n' % (yesterday.year, yesterday.month, yesterday.day))
         self.buffer.write('    start: %s/%s/%s\n' % (self.repo.first_commit.year, self.repo.first_commit.month, self.repo.first_commit.day))
         self.buffer.write('    step: 1d\n')
         self.buffer.write('\n')

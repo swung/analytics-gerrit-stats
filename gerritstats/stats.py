@@ -55,7 +55,6 @@ def create_aggregate_dataset(gerrit):
                 parent_repo = gerrit.repos.get(parent)
                 if parent_repo:
                     if parent_repo.name == repo.name:
-                        
                         print 'Parent == child: %s: %s' % (parent_repo.name, repo.name)
                         sys.exit(-1)
                     gerrit.repos[parent_repo.name] = merge(parent_repo, repo)
@@ -110,7 +109,7 @@ def merge(parent_repo, repo):
             parent_repo.observations[date] = deepcopy(obs)
         else:
             for key, value in obs.iteritems():
-                parent_repo.observations[date].update(key, value)
+                parent_repo.observations[date] = parent_repo.observations[date].update(key, value)
     return parent_repo
 
 
@@ -201,8 +200,8 @@ def main():
     logging.info('Successfully loaded approval data from database.')
     for approval in approvals:
         review = Review(**approval)
-        #drop bot reviewers
-        if review.reviewer.human == True:
+        #drop bot reviewers and drop reviews with +0 (this is a hack to make it more compatible with gerrit search quagmire)
+        if review.reviewer.human == True and review.value != 0:
             commit = commits.get(review.change_id)
             if commit:
                 commit.reviews['%s-%s' % (review.granted, review.value)] = review # review.granted by itself is not guaranteed to be unique.
@@ -210,9 +209,8 @@ def main():
                 logging.info('Could not find a commit that belongs to change_id: %s written by %s (%s) on %s' % (review.change_id, review.reviewer.full_name, review.reviewer.account_id, review.granted))
     
     for commit in commits.itervalues():
-        #if commit.last_updated_on.year == 2012 and commit.last_updated_on.month == 6 and commit.last_updated_on.day ==15:
-        if commit.change_id == 3435:# or commit.change_id == 8028 or commit.change_id == 4658:
-            print commit
+#        if commit.change_id == 10127 or commit.change_id == 10125 or commit.change_id == 9654 or commit.change_id == 9549 or commit.change_id == 9420 or commit.change_id == 9273 or commit.change_id == 9259 or commit.change_id == 9141 or commit.change_id ==  8937 or commit.change_id == 8928 or commit.change_id == 8728 or commit.change_id == 7608 or commit.change_id == 7149 or commit.change_id == 10129: # or commit.change_id == 4658:
+#            print commit
         commit.is_all_positive_reviews()
         commit.calculate_wait_first_review()
         commit.calculate_wait_plus2()

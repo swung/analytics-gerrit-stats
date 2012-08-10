@@ -96,8 +96,6 @@ class Gerrit(object):
                         logging.error('Leaving gerrit-stats unsuccesfully.')
                         sys.exit(-1)        
                 logging.info('Successfully removed %s' % source)
-                #shutil.rmtree('data/datafiles')
-                #shutil.rmtree('data/datasources')
             
 
     def is_valid_path(self, path):

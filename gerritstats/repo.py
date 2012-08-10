@@ -64,7 +64,7 @@ class Repo(object):
         
         self.filemode = self.determine_filemode()
         self.create_path()
-        self.today = date.today()
+        self.yesterday = date.today() - timedelta(days=1)
         
         self.wmf_extension = self.is_wikimedia_extension()
         self.extension = self.is_extension()
@@ -108,8 +108,13 @@ class Repo(object):
     
     def daterange(self, start_date, end_date):
         dt = ((end_date - start_date).days)
-        if dt > 0: 
-            dt =+1 #simple way of rounding number of days. 
+        #this happens for the waiting_plus2 measure if there are no positive reviews, then the review date is set to 
+        #the commit creation date but that will mean that the end date is before the start date. Hence a negative value
+        #here should be reset to 0. 
+        if dt < 0:
+            dt = 0
+        elif dt > 0: 
+            dt = dt + 1 # add +1 because we want to have the iterator include the end date. 
         for n in range(dt):
             yield start_date + timedelta(n)
     
@@ -156,7 +161,7 @@ class Repo(object):
                 break
 
     def fill_in_missing_days(self):
-        for date in self.daterange(self.first_commit, self.today):
+        for date in self.daterange(self.first_commit, self.yesterday):
             obs = self.observations.get(date, Observation(date, self, False))
             self.observations[date] = obs
     
@@ -190,20 +195,14 @@ class Repo(object):
         self.increment_number_of_commits(commit)
         if commit.status == 'A':
             return
-        
         for metric in self.metrics:
             start_date = self.get_review_start_date(commit, metric)
             end_date = self.get_review_end_date(commit, metric)
-            if end_date == None:
-                print 'should not happen'
-            if start_date > end_date:
-                print 'should not happen'
             
             for date in self.daterange(start_date, end_date):
                 obs = self.observations.get(date.date(), Observation(date.date(), self))
                 for heading in product([metric], self.suffixes):
                     heading = self.merge_keys(heading[0], heading[1])
-                    #print heading
                     value = getattr(obs, heading)
                     if heading.endswith('staff') and commit.author.staff == True:
                         value+=1
@@ -232,9 +231,15 @@ class Repo(object):
            
     def prune_observations(self):
         self.determine_first_commit_date()
+        today = datetime(datetime.today().year, datetime.today().month, datetime.today().day) 
         for date in self.observations.keys():
             if date < self.first_commit:
                 del self.observations[date]
+        
+        try:
+            del self.observations[today]
+        except KeyError:
+            pass
     
     def write_dataset(self, gerrit):
         #if dataset is empty then there is no need to write it 
@@ -289,3 +294,4 @@ class Observation(object):
         prop = getattr(self, key)
         prop += value
         setattr(self, key, prop)
+        return self
