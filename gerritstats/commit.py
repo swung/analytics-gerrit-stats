@@ -91,7 +91,7 @@ class Commit(object):
         self.repo_has_review = True
         self.waiting_first_review = datetime.today() - timedelta(days=1) #wait time between creation and first review
         self.waiting_plus2 = datetime.today() - timedelta(days=1)  #wait time between first plus 1 and plus 2
-        self.merge_review = None #this will become an instance of Review
+        self.merge_review = self.get_merge_review() #this will become an instance of Review
         self.all_positive_reviews = None
         self.author = Developer(**kwargs)  #this will become an instance of Developer
     
@@ -120,8 +120,16 @@ class Commit(object):
                 return review
         #this commit does not have a review with value 'value', return None
         return None
+
+    def get_merge_review(self):
+        if self.merged == True:
+            merge_review = self.get_first_review_by_review_value(2)
+            if merge_review:
+                self.merge_review = merge_review
+            else:
+                #commit was merged but there was no review
+                self.merge_review = None
         
-    
     def get_first_review(self):
         dates = self.reviews.keys()
         try:
@@ -129,7 +137,6 @@ class Commit(object):
             return self.reviews.get(first_date)
         except ValueError:
             return None
-    
     
     def calculate_wait_plus2(self):
         if self.merged and self.reviews != {}:
