@@ -81,6 +81,12 @@ class Repo(object):
             
         dates = self.observations.keys()
         dates.sort()
+        today = datetime.today()
+        last_date = dates[-1]
+        if last_date.year == today.year and last_date.month == today.month and last_date.day == today.day: 
+            dates.pop(dates.index(last_date))
+            #print 'today removed form dataset: %s ' % self.name
+        
         for date in dates:
             observation = self.observations.get(date)
             values = observation.get_values()
@@ -106,7 +112,7 @@ class Repo(object):
                 except OSError:
                     pass
     
-    def daterange(self, start_date, end_date):
+    def daterange(self, start_date, end_date, commit_is_open=False):
         dt = ((end_date - start_date).days)
         #this happens for the waiting_plus2 measure if there are no positive reviews, then the review date is set to 
         #the commit creation date but that will mean that the end date is before the start date. Hence a negative value
@@ -114,7 +120,10 @@ class Repo(object):
         if dt < 0:
             dt = 0
         elif dt > 0: 
-            dt = dt + 1 # add +1 because we want to have the iterator include the end date. 
+            if commit_is_open:
+                dt = dt + 2 # add +2 because we want to have the iterator include the end date.
+            else:
+                dt = dt + 1 # add +2 because we want to have the iterator include the end date. 
         for n in range(dt):
             yield start_date + timedelta(n)
     
@@ -199,7 +208,7 @@ class Repo(object):
             start_date = self.get_review_start_date(commit, metric)
             end_date = self.get_review_end_date(commit, metric)
             
-            for date in self.daterange(start_date, end_date):
+            for date in self.daterange(start_date, end_date,commit_is_open=commit.open):
                 obs = self.observations.get(date.date(), Observation(date.date(), self))
                 for heading in product([metric], self.suffixes):
                     heading = self.merge_keys(heading[0], heading[1])
@@ -231,15 +240,9 @@ class Repo(object):
            
     def prune_observations(self):
         self.determine_first_commit_date()
-        today = datetime(datetime.today().year, datetime.today().month, datetime.today().day) 
         for date in self.observations.keys():
             if date < self.first_commit:
-                del self.observations[date]
-        
-        try:
-            del self.observations[today]
-        except KeyError:
-            pass
+                del self.observations[date] 
     
     def write_dataset(self, gerrit):
         #if dataset is empty then there is no need to write it 
