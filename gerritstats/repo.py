@@ -112,7 +112,7 @@ class Repo(object):
                 except OSError:
                     pass
     
-    def daterange(self, start_date, end_date, commit_is_open=False):
+    def daterange(self, start_date, end_date):
         dt = ((end_date - start_date).days)
         #this happens for the waiting_plus2 measure if there are no positive reviews, then the review date is set to 
         #the commit creation date but that will mean that the end date is before the start date. Hence a negative value
@@ -120,10 +120,7 @@ class Repo(object):
         if dt < 0:
             dt = 0
         elif dt > 0: 
-            if commit_is_open:
-                dt = dt + 2 # add +2 because we want to have the iterator include the end date.
-            else:
-                dt = dt + 1 # add +2 because we want to have the iterator include the end date. 
+            dt = dt + 1 # add +2 because we want to have the iterator include the end date. 
         for n in range(dt):
             yield start_date + timedelta(n)
     
@@ -208,7 +205,7 @@ class Repo(object):
             start_date = self.get_review_start_date(commit, metric)
             end_date = self.get_review_end_date(commit, metric)
             
-            for date in self.daterange(start_date, end_date,commit_is_open=commit.open):
+            for date in self.daterange(start_date, end_date):
                 obs = self.observations.get(date.date(), Observation(date.date(), self))
                 for heading in product([metric], self.suffixes):
                     heading = self.merge_keys(heading[0], heading[1])
