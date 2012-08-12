@@ -86,7 +86,7 @@ class Commit(object):
         self.nbr_patch_sets = kwargs.get('nbr_patch_sets')
         self.status = kwargs.get('status')
         self.merged = True if kwargs.get('status') == 'M' else False
-        self.reviews = OrderedDict()
+        self.patch_sets = OrderedDict()
         self.self_review = False
         self.repo_has_review = True
         self.waiting_first_review = datetime.today() - timedelta(days=1) #wait time between creation and first review
@@ -108,7 +108,8 @@ class Commit(object):
                 pass
     
     def is_all_positive_reviews(self):
-        values = [True if review.value > 0 else False for review in self.reviews.itervalues()]
+        #only consider the most recent patch_set to determine whether all reviews were positive.
+        values = [True if review.value > 0 else False for review in self.patch_sets[self.nbr_patch_sets].reviews.itervalues()]
         if all(values) and len(values) > 0:
             self.all_positive_reviews = True
         else:
@@ -116,7 +117,7 @@ class Commit(object):
     
     def get_first_review_by_review_value(self, value):
         #self.reviews is an ordereddict that is sorted by timestamp, so the first hit is the oldest. 
-        for review in self.reviews.itervalues():
+        for review in self.patch_sets[self.nbr_patch_sets].reviews.itervalues():
             if review.value == value and review.reviewer.human == True:
                 return review
         #this commit does not have a review with value 'value', return None
@@ -132,15 +133,15 @@ class Commit(object):
                 self.merge_review = None
         
     def get_first_review(self):
-        dates = self.reviews.keys()
+        dates = self.patch_sets[self.nbr_patch_sets].reviews.keys()
         try:
             first_date = min(dates)
-            return self.reviews.get(first_date)
+            return self.patch_sets[self.nbr_patch_sets].reviews.get(first_date)
         except ValueError:
             return None
     
     def calculate_wait_plus2(self):
-        if self.merged and self.reviews != {}:
+        if self.merged and self.patch_sets[self.nbr_patch_sets].reviews != {}:
             #commit was merged with reviews
             try:
                 review = self.get_first_review_by_review_value(2)
@@ -151,7 +152,7 @@ class Commit(object):
                 #although there are reviews, there is no +2 review
                 #second guess the merge date by using last_updated_on field
                 review = Review(granted=self.last_updated_on)
-        elif self.merged and self.reviews == {}:
+        elif self.merged and self.patch_sets[self.nbr_patch_sets].reviews == {}:
             #commit was merged but there were no reviews
             #second guess the merge date by using last_updated_on field
             review = Review(granted=self.last_updated_on)
@@ -166,7 +167,7 @@ class Commit(object):
         self.waiting_plus2 = review
     
     def calculate_wait_first_review(self):
-        if self.reviews == {}:
+        if self.patch_sets[self.nbr_patch_sets].reviews == {}:
             if self.merged:
                 review = Review(granted=self.last_updated_on)
             else:
@@ -177,7 +178,22 @@ class Commit(object):
             review = self.get_first_review()
         
         self.waiting_first_review = review
-        
+
+class Patchset(object):
+    def __init__(self, **kwargs):
+        self.revision = kwargs.get('revision')
+        self.uploader_account_id = kwargs.get('uploader_acoount_id')
+        self.created_on = kwargs.get('created_on')
+        self.change_id = kwargs.get('change_id')
+        self.patch_set_id = kwargs.get('patch_set_id')
+        self.draft = kwargs.get('draft')
+        self.value = kwargs.get('value')
+        self.granted = kwargs.get('granted')
+        self.change_open = kwargs.get('change_open')
+        self.change_sort_key = kwargs.get('change_sort_key')
+        self.account_id = kwargs.get('account_id')
+        self.category_id = kwargs.get('category_id')
+        self.reviews = OrderedDict()
     
 class Review(object):
     def __init__(self, **kwargs):

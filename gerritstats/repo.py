@@ -33,7 +33,7 @@ except:
 
 from yaml import YamlConfig
 from extensions import extensions
-from settings import GERRIT_CREATION_DATE
+from sql_queries import GERRIT_CREATION_DATE
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)

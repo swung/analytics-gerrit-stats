@@ -56,3 +56,16 @@ approvals_query = '''
                 ORDER BY
                     patch_set_approvals.granted;
                 '''
+
+patch_sets_query = '''
+                SELECT
+                    *
+                FROM 
+                    patch_sets
+                LEFT JOIN
+                    patch_set_approvals
+                ON 
+                    patch_sets.change_id=patch_set_approvals.change_id 
+                AND 
+                    patch_sets.patch_set_id=patch_set_approvals.patch_set_id;
+                '''

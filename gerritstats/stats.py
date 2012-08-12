@@ -30,8 +30,8 @@ from datetime import datetime, date, timedelta
 from copy import deepcopy
 
 from gerrit import Gerrit
-from commit import Review, Commit
-from settings import GERRIT_CREATION_DATE, approvals_query, changes_query
+from commit import Review, Commit, Patchset
+from sql_queries import GERRIT_CREATION_DATE, approvals_query, changes_query, patch_sets_query
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -161,6 +161,60 @@ def unsuccessfull_exit():
     sys.exit(-1)   
 
 
+def load_commit_data(cur, commits, args):
+    try:
+        cur.execute(changes_query, args)
+    except _mysql_exceptions.ProgrammingError, e:
+        logging.warning('Encountered problem while running db operation: %s' % e)
+        unsuccessfull_exit()
+    
+    changes = cur.fetchall()
+    logging.info('Successfully loaded commit data from database.')
+    for change in changes:
+        commit = Commit(**change)
+        commits[commit.change_id] = commit
+    
+    return commits
+        
+def load_review_data(cur, commits, args):
+    try:
+        cur.execute(approvals_query, args)
+    except _mysql_exceptions.ProgrammingError, e:
+        logging.warning('Encountered problem while running db operation: %s' % e)
+        unsuccessfull_exit()
+    
+    approvals = cur.fetchall()
+    logging.info('Successfully loaded approval data from database.')
+    for approval in approvals:
+        review = Review(**approval)
+        #drop bot reviewers and drop reviews with +0 (this is a hack to make it more compatible with gerrit search quagmire)
+        if review.reviewer.human == True and review.value != 0:
+            commit = commits.get(review.change_id)
+            if commit:
+                commit.patch_sets[review.patch_set_id].reviews['%s_%s' % (review.granted, review.value)] = review
+            else:
+                logging.info('Could not find a commit that belongs to change_id: %s written by %s (%s) on %s' % (review.change_id, review.reviewer.full_name, review.reviewer.account_id, review.granted))
+    return commits
+    
+def load_patch_set_data(cur, commits):
+    try:
+        cur.execute(patch_sets_query)
+    except _mysql_exceptions.ProgrammingError, e:
+        logging.warning('Encountered problem while running db operation: %s' % e)
+        unsuccessfull_exit()
+    
+    patch_sets = cur.fetchall()
+    logging.info('Successfully loaded patch_sets data from database.')
+    for patch_set in patch_sets:
+        patch_set = Patchset(**patch_set)
+        commit = commits.get(patch_set.change_id)
+        if commit:
+            commit.patch_sets[patch_set.patch_set_id] = patch_set
+        else:
+            logging.info('Could not find a commit that belongs to patch_set_id: %s written by %s on %s' % (patch_set.change_id, patch_set.uploader_account_id, patch_set.created_on))
+    return commits
+
+
 def main():
     logging.info('Launching gerrit-stats')
     
@@ -178,35 +232,15 @@ def main():
     else:
         start_date = read_last_run(gerrit.dataset)
         commits = load_previous_results(gerrit.dataset, start_date)
+    args = (start_date, yesterday)
+    
     
     logging.info('Queries will span timeframe: %s - %s.' % (start_date, yesterday))
     logging.info('Queries will always run up to \'yesterday\', so that we always have counts for full days.')
 
-    args = (start_date, yesterday)
-    try:
-        cur.execute(changes_query, args)
-    except _mysql_exceptions.ProgrammingError, e:
-        logging.warning('Encountered problem while running db operation: %s' % e)
-        unsuccessfull_exit()
-    
-    changes = cur.fetchall()
-    logging.info('Successfully loaded commit data from database.')
-    for change in changes:
-        commit = Commit(**change)
-        commits[commit.change_id] = commit
-    
-    cur.execute(approvals_query, args)
-    approvals = cur.fetchall()
-    logging.info('Successfully loaded approval data from database.')
-    for approval in approvals:
-        review = Review(**approval)
-        #drop bot reviewers and drop reviews with +0 (this is a hack to make it more compatible with gerrit search quagmire)
-        if review.reviewer.human == True and review.value != 0:
-            commit = commits.get(review.change_id)
-            if commit:
-                commit.reviews['%s-%s' % (review.granted, review.value)] = review # review.granted by itself is not guaranteed to be unique.
-            else:
-                logging.info('Could not find a commit that belongs to change_id: %s written by %s (%s) on %s' % (review.change_id, review.reviewer.full_name, review.reviewer.account_id, review.granted))
+    commits = load_commit_data(cur, commits, args)
+    commits = load_patch_set_data(cur, commits)
+    commits = load_review_data(cur, commits, args)
     
     for commit in commits.itervalues():
 #        if commit.change_id == 10127 or commit.change_id == 10125 or commit.change_id == 9654 or commit.change_id == 9549 or commit.change_id == 9420 or commit.change_id == 9273 or commit.change_id == 9259 or commit.change_id == 9141 or commit.change_id ==  8937 or commit.change_id == 8928 or commit.change_id == 8728 or commit.change_id == 7608 or commit.change_id == 7149 or commit.change_id == 10129: # or commit.change_id == 4658:
