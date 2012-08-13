@@ -22,7 +22,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 __version__ = '0.1.0'
 VERSION = tuple(map(int, __version__.split('.')))
 
-from classes import Gerrit, Settings, Metric, Repo
+from gerrit import Gerrit
+from repo import Repo, Observation
+from changeset import Changeset, Developer, Patchset, Review
 from stats import main
 
 
