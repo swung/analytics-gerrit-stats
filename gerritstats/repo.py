@@ -62,7 +62,6 @@ class Repo(object):
         self.full_csv_path = os.path.join(self.csv_directory, self.filename)
         self.full_yaml_path = os.path.join(self.yaml_directory, self.filename)
         
-        self.filemode = self.determine_filemode()
         self.create_path()
         self.yesterday = date.today() - timedelta(days=1)
         
@@ -74,10 +73,9 @@ class Repo(object):
         return self.name
     
     def create_dataset(self):
-        if self.filemode == 'w':
-            headings = self.generate_headings()
-            self.file_contents.write(headings)
-            self.file_contents.write('\n')
+        headings = self.generate_headings()
+        self.file_contents.write(headings)
+        self.file_contents.write('\n')
             
         dates = self.observations.keys()
         dates.sort()
@@ -116,12 +114,15 @@ class Repo(object):
         dt = ((end_date - start_date).days)
         #this happens for the waiting_plus2 measure if there are no positive reviews, then the review date is set to 
         #the commit creation date but that will mean that the end date is before the start date. Hence a negative value
-        #here should be reset to 0. 
+        #here should be reset to 0.
         if dt < 0:
             dt = 0
         elif dt > 0: 
-            dt = dt + 1 # add +2 because we want to have the iterator include the end date. 
+            dt = dt + 1 # add +1 because we want to have the iterator include the end date. 
         for n in range(dt):
+            if end_date.year == 2012  and end_date.month==8 and end_date.day==12:
+                if dt - n == 1:
+                    print 'break'
             yield start_date + timedelta(n)
     
     def determine_directory(self, location):
@@ -129,12 +130,6 @@ class Repo(object):
 
     def determine_filename(self):
         return os.path.basename(self.name)
-    
-    def determine_filemode(self):
-        if os.path.isfile(self.full_csv_path) == False:
-            return 'w'
-        else:
-            return 'a'
     
     def determine_parent(self, gerrit):
         parents = []
@@ -249,7 +244,7 @@ class Repo(object):
             yaml = YamlConfig(gerrit, self)
             yaml.write_file()
             
-            fh = open(self.full_csv_path, self.filemode)
+            fh = open(self.full_csv_path, 'w')
             fh.write(self.file_contents.getvalue())
             fh.close()
 

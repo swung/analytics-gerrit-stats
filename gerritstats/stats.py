@@ -47,124 +47,20 @@ ch.setFormatter(formatter)
 logger.addHandler(ch)
 
 
-def create_aggregate_dataset(gerrit):
-    logging.info('Creating datasets for parent repositories.')
-    for name, repo in gerrit.repos.iteritems():
-        if repo.is_parent == False:
-            for parent in repo.parent_repos:
-                parent_repo = gerrit.repos.get(parent)
-                if parent_repo:
-                    if parent_repo.name == repo.name:
-                        print 'Parent == child: %s: %s' % (parent_repo.name, repo.name)
-                        sys.exit(-1)
-                    gerrit.repos[parent_repo.name] = merge(parent_repo, repo)
-                else:
-                    logging.warn('Parent repo %s does not exist, while repo %s expects there to be a parent repo.' % (parent, name))
-    return gerrit
-
-
-def create_path(location, filename):
-    return os.path.join(location, filename)
-
-
 def init_db(my_cnf):
     try:
         db = MySQLdb.connect(read_default_file=my_cnf)
         cur = db.cursor(MySQLdb.cursors.DictCursor)
-        logging.info('Obtained database cursor.')
+        logging.info('Successfully obtained database cursor.')
     except _mysql_exceptions.OperationalError, error:
         logging.warning('Could *NOT* obtain database cursor. Error: %s' % error)
         unsuccessfull_exit()
     return cur 
 
 
-def load(location, filename):
-    path = create_path(location, filename)
-    if os.path.exists(path):
-        fh = open(path, 'rb')
-        obj = cPickle.load(fh)
-        fh.close()
-        logging.info('Successfully loaded %s.' % path)
-    else:
-        logging.warning('There is possibly a problem: gerrit-stats was able to detect that a previous was carried out but could not load commits.bin.')
-        logging.warning('It is probably best to delete the file last_run.txt and start gerrit-stats again.')
-        unsuccessfull_exit()
-    return obj
-
-
-def load_previous_results(location, start_date):
-    commits = {}
-    if start_date == GERRIT_CREATION_DATE:
-        logging.info('Did *NOT* load commits.bin, this means we run against the entire gerrit history.')
-        return commits
-    else:
-        filename = 'commits.bin'
-        commits = load(location, filename)
-    return commits
-
-
-def merge(parent_repo, repo):
-    for date, obs in repo.observations.iteritems():
-        if date not in parent_repo.observations:
-            parent_repo.observations[date] = deepcopy(obs)
-        else:
-            for key, value in obs.iteritems():
-                parent_repo.observations[date] = parent_repo.observations[date].update(key, value)
-    return parent_repo
-
-
-def parse_commandline():
-    parser = argparse.ArgumentParser(description='Welcome to gerrit-stats. The mysql credentials should be stored in the .my.cnf file. By default, this file is read from the user\'s home directory. You can specify an alternative location using the --config option.')
-    parser.add_argument('--config', help='Specify the absolute path to tell gerrit-stats where it can find the MySQL my.cnf file.', action='store', required=False, default='~/.my.cnf')
-    parser.add_argument('--datasets', help='Specify the absolute path to store the gerrit-stats datasets.', required=True)
-    parser.add_argument('--recreate', help='Delete all existing datafiles and datasources and recreate them from scratch. This needs to be done whenever a new metric is added.', action='store_true', default=False)
-    parser.add_argument('--toolkit', help='Specify the visualization library you want to use. Valid choices are: dygraphs and d3.', action='store', default='d3')
-    parser.add_argument('--ssh-username', help='Specify your SSH username if your username on your local box dev is different then the one you use on the remote box.', action='store', required=False)
-    parser.add_argument('--ssh-identity', help='Specify the location of your SSH private key.', action='store', required=False)
-    return parser.parse_args()
-
-
-def read_last_run(location):
-    path = create_path(location, 'last_run.txt')
+def load_commit_data(cur, commits):
     try:
-        fh = open(path, 'r')
-        start_date = datetime.strptime(fh.readline(), '%Y-%m-%d')
-        fh.close()
-    except IOError:
-        start_date = GERRIT_CREATION_DATE
-    return start_date
-
-            
-def save(location, filename, obj):
-    path = create_path(location, filename)
-    fh = open(path, 'wb')
-    cPickle.dump(obj, fh)
-    fh.close()
-    logging.info('Successfully saved %s.' % path)
-    
-    
-def write_last_run(start_date, location):
-    filename = 'last_run.txt'
-    path = create_path(location, filename)
-    fh = open(path,'w')
-    fh.write('%s-%s-%s' % (start_date.year, start_date.month, start_date.day))
-    fh.close()
-    logging.info('Successfully wrote %s.' % path)
-
-def successful_exit():
-    logging.info('Closing down gerrit-stats, no errors.')
-    logging.info('Mission accomplished, beanz have been counted.')
-
-
-def unsuccessfull_exit():
-    logging.error('Gerrit-stats exited unsuccessfully, please look at the logs for hints on how to fix the problem.')
-    logging.error('If the problem remains, contact Diederik van Liere <dvanliere@wikimedia.org>')
-    sys.exit(-1)   
-
-
-def load_commit_data(cur, commits, args):
-    try:
-        cur.execute(changes_query, args)
+        cur.execute(changes_query)
     except _mysql_exceptions.ProgrammingError, e:
         logging.warning('Encountered problem while running db operation: %s' % e)
         unsuccessfull_exit()
@@ -176,10 +72,11 @@ def load_commit_data(cur, commits, args):
         commits[commit.change_id] = commit
     
     return commits
-        
-def load_review_data(cur, commits, args):
+
+
+def load_review_data(cur, commits):
     try:
-        cur.execute(approvals_query, args)
+        cur.execute(approvals_query)
     except _mysql_exceptions.ProgrammingError, e:
         logging.warning('Encountered problem while running db operation: %s' % e)
         unsuccessfull_exit()
@@ -197,6 +94,7 @@ def load_review_data(cur, commits, args):
                 logging.info('Could not find a commit that belongs to change_id: %s written by %s (%s) on %s' % (review.change_id, review.reviewer.full_name, review.reviewer.account_id, review.granted))
     return commits
     
+
 def load_patch_set_data(cur, commits):
     try:
         cur.execute(patch_sets_query)
@@ -216,6 +114,55 @@ def load_patch_set_data(cur, commits):
     return commits
 
 
+def create_aggregate_dataset(gerrit):
+    logging.info('Creating datasets for parent repositories.')
+    for name, repo in gerrit.repos.iteritems():
+        if repo.is_parent == False:
+            for parent in repo.parent_repos:
+                parent_repo = gerrit.repos.get(parent)
+                if parent_repo:
+                    if parent_repo.name == repo.name:
+                        logging.warning('Parent == child: %s: %s' % (parent_repo.name, repo.name))
+                        unsuccessfull_exit()
+                    gerrit.repos[parent_repo.name] = merge(parent_repo, repo)
+                else:
+                    logging.warn('Parent repo %s does not exist, while repo %s expects there to be a parent repo.' % (parent, name))
+    return gerrit
+
+
+def merge(parent_repo, repo):
+    for date, obs in repo.observations.iteritems():
+        if date.year == 2012 and date.month==8 and date.day == 12:
+            print 'break'
+        if date not in parent_repo.observations:
+            parent_repo.observations[date] = deepcopy(obs)
+        else:
+            for key, value in obs.iteritems():
+                parent_repo.observations[date] = parent_repo.observations[date].update(key, value)
+    return parent_repo
+
+
+def parse_commandline():
+    parser = argparse.ArgumentParser(description='Welcome to gerrit-stats. The mysql credentials should be stored in the .my.cnf file. By default, this file is read from the user\'s home directory. You can specify an alternative location using the --config option.')
+    parser.add_argument('--config', help='Specify the absolute path to tell gerrit-stats where it can find the MySQL my.cnf file.', action='store', required=False, default='~/.my.cnf')
+    parser.add_argument('--datasets', help='Specify the absolute path to store the gerrit-stats datasets.', required=True)
+    parser.add_argument('--toolkit', help='Specify the visualization library you want to use. Valid choices are: dygraphs and d3.', action='store', default='d3')
+    parser.add_argument('--ssh-username', help='Specify your SSH username if your username on your local box dev is different then the one you use on the remote box.', action='store', required=False)
+    parser.add_argument('--ssh-identity', help='Specify the location of your SSH private key.', action='store', required=False)
+    return parser.parse_args()
+
+
+def successful_exit():
+    logging.info('Closing down gerrit-stats, no errors.')
+    logging.info('Mission accomplished, beanz have been counted.')
+
+
+def unsuccessfull_exit():
+    logging.error('Gerrit-stats exited unsuccessfully, please look at the logs for hints on how to fix the problem.')
+    logging.error('If the problem remains, contact Diederik van Liere <dvanliere@wikimedia.org>')
+    sys.exit(-1)   
+
+
 def main():
     logging.info('Launching gerrit-stats')
     
@@ -226,22 +173,16 @@ def main():
     cur = init_db(gerrit.my_cnf)
     gerrit.fetch_repos()
     
+    start_date = GERRIT_CREATION_DATE
     yesterday = date.today() - timedelta(days=1)
-    if args.recreate:
-        commits = {}
-        start_date = GERRIT_CREATION_DATE
-    else:
-        start_date = read_last_run(gerrit.dataset)
-        commits = load_previous_results(gerrit.dataset, start_date)
-    args = (start_date, yesterday)
-    
+    commits = {}
     
     logging.info('Queries will span timeframe: %s - %s.' % (start_date, yesterday))
     logging.info('Queries will always run up to \'yesterday\', so that we always have counts for full days.')
 
-    commits = load_commit_data(cur, commits, args)
+    commits = load_commit_data(cur, commits)
     commits = load_patch_set_data(cur, commits)
-    commits = load_review_data(cur, commits, args)
+    commits = load_review_data(cur, commits)
     
     for commit in commits.itervalues():
 #        if commit.change_id == 10127 or commit.change_id == 10125 or commit.change_id == 9654 or commit.change_id == 9549 or commit.change_id == 9420 or commit.change_id == 9273 or commit.change_id == 9259 or commit.change_id == 9141 or commit.change_id ==  8937 or commit.change_id == 8928 or commit.change_id == 8728 or commit.change_id == 7608 or commit.change_id == 7149 or commit.change_id == 10129: # or commit.change_id == 4658:
@@ -274,8 +215,6 @@ def main():
         repo.write_dataset(gerrit)    
     
     # save results for future use.
-    save(gerrit.dataset, 'commits.bin', commits)
-    write_last_run(yesterday, gerrit.dataset)
     successful_exit()
 
 if __name__== '__main__':

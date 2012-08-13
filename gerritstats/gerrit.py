@@ -47,7 +47,6 @@ class Gerrit(object):
         self.host = 'gerrit.wikimedia.org'
         self.port = 29418
         self.format = 'JSON'
-        self.recreate = args.recreate
         self.toolkit = args.toolkit
         self.ssh_username = args.ssh_username
         self.ssh_identity = args.ssh_identity
@@ -84,20 +83,17 @@ class Gerrit(object):
                 yield os.path.join(root, filename)
 
     def remove_old_datasets(self):
-        if self.recreate:
-            sources = [self.csv_location, self.yaml_location]
-
-            for source in sources:
-                for filename in self.walk_directory(source, '*.*'):
-                    logging.info('Removing %s...' % (os.path.join(source, filename)))
-                    try:
-                        os.unlink(filename)
-                    except OSError, e:
-                        logging.warning('Failed to remove %s but get error %s' % (os.path.join(source, filename), e))
-                        logging.error('Leaving gerrit-stats unsuccesfully.')
-                        sys.exit(-1)        
-                logging.info('Successfully removed %s' % source)
-            
+        sources = [self.csv_location, self.yaml_location]
+        for source in sources:
+            for filename in self.walk_directory(source, '*.*'):
+                logging.info('Removing %s...' % (os.path.join(source, filename)))
+                try:
+                    os.unlink(filename)
+                except OSError, e:
+                    logging.warning('Failed to remove %s but get error %s' % (os.path.join(source, filename), e))
+                    logging.error('Leaving gerrit-stats unsuccesfully.')
+                    sys.exit(-1)        
+            logging.info('Successfully removed %s' % source)
 
     def is_valid_path(self, path):
         if path.startswith('~'):

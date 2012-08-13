@@ -32,10 +32,6 @@ changes_query = '''
                     accounts
                 ON
                     changes.owner_account_id=accounts.account_id
-                WHERE
-                    changes.created_on >= %s
-                AND
-                    changes.created_on <= %s
                 ORDER BY
                     changes.created_on;
                 '''
@@ -49,10 +45,6 @@ approvals_query = '''
                     accounts
                 ON 
                     patch_set_approvals.account_id=accounts.account_id
-                WHERE
-                    patch_set_approvals.granted >= %s
-                AND
-                    patch_set_approvals.granted <= %s
                 ORDER BY
                     patch_set_approvals.granted;
                 '''
