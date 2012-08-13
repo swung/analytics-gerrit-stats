@@ -63,7 +63,7 @@ class Repo(object):
         self.full_yaml_path = os.path.join(self.yaml_directory, self.filename)
         
         self.create_path()
-        self.yesterday = date.today() - timedelta(days=1)
+        self.yesterday = datetime(date.today().year, date.today().month, date.today().day-1, 23,59,59)
         
         self.wmf_extension = self.is_wikimedia_extension()
         self.extension = self.is_extension()
@@ -120,9 +120,6 @@ class Repo(object):
         elif dt > 0: 
             dt = dt + 1 # add +1 because we want to have the iterator include the end date. 
         for n in range(dt):
-            if end_date.year == 2012  and end_date.month==8 and end_date.day==12:
-                if dt - n == 1:
-                    print 'break'
             yield start_date + timedelta(n)
     
     def determine_directory(self, location):
@@ -153,16 +150,16 @@ class Repo(object):
     def determine_first_commit_date(self):
         dates = self.observations.keys()
         dates.sort()
-        for date in dates:
-            touched = self.observations[date].touched
+        for dt in dates:
+            touched = self.observations[dt].touched
             if not touched:
-                if date < self.future_date:
-                    self.first_commit = date + timedelta(days=1)
+                if dt < self.future_date:
+                    self.first_commit = dt
             else:
                 break
 
     def fill_in_missing_days(self):
-        for date in self.daterange(self.first_commit, self.yesterday):
+        for date in self.daterange(self.first_commit, self.yesterday.date()):
             obs = self.observations.get(date, Observation(date, self, False))
             self.observations[date] = obs
     

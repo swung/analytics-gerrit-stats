@@ -132,8 +132,6 @@ def create_aggregate_dataset(gerrit):
 
 def merge(parent_repo, repo):
     for date, obs in repo.observations.iteritems():
-        if date.year == 2012 and date.month==8 and date.day == 12:
-            print 'break'
         if date not in parent_repo.observations:
             parent_repo.observations[date] = deepcopy(obs)
         else:
@@ -174,7 +172,7 @@ def main():
     gerrit.fetch_repos()
     
     start_date = GERRIT_CREATION_DATE
-    yesterday = date.today() - timedelta(days=1)
+    yesterday = datetime(date.today().year, date.today().month, date.today().day-1, 23, 59, 59)
     commits = {}
     
     logging.info('Queries will span timeframe: %s - %s.' % (start_date, yesterday))
@@ -185,9 +183,6 @@ def main():
     commits = load_review_data(cur, commits)
     
     for commit in commits.itervalues():
-#        if commit.change_id == 10127 or commit.change_id == 10125 or commit.change_id == 9654 or commit.change_id == 9549 or commit.change_id == 9420 or commit.change_id == 9273 or commit.change_id == 9259 or commit.change_id == 9141 or commit.change_id ==  8937 or commit.change_id == 8928 or commit.change_id == 8728 or commit.change_id == 7608 or commit.change_id == 7149 or commit.change_id == 10129: # or commit.change_id == 4658:
-        if commit.change_id ==7826:
-            print commit
         commit.is_all_positive_reviews()
         commit.calculate_wait_first_review()
         commit.calculate_wait_plus2()
@@ -197,7 +192,7 @@ def main():
         if repo:
             repo.increment(commit)
         else:
-            logging.info('Repo %s does not exist, ignored repos are: %s' % (commit.dest_project_name, gerrit.ignore_repos))
+            logging.info('Repo %s does not exist, ignored repos are: %s' % (commit.dest_project_name, ','.join(gerrit.ignore_repos)))
     
     logging.info('Successfully parsed commit data.')
     # create datasets that are collections of repositories

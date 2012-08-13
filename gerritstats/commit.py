@@ -19,7 +19,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, date, timedelta
 
 try:
     from collections import OrderedDict
@@ -89,8 +89,8 @@ class Commit(object):
         self.patch_sets = OrderedDict()
         self.self_review = False
         self.repo_has_review = True
-        self.waiting_first_review = datetime.today() - timedelta(days=1) #wait time between creation and first review
-        self.waiting_plus2 = datetime.today() - timedelta(days=1)  #wait time between first plus 1 and plus 2
+        self.waiting_first_review = datetime(date.today().year, date.today().month, date.today().day-1, 23, 59, 59) #wait time between creation and first review
+        self.waiting_plus2 = datetime(date.today().year, date.today().month, date.today().day-1, 23, 59, 59)  #wait time between first plus 1 and plus 2
         self.merge_review = None #this will become an instance of Review
         self.all_positive_reviews = None
         self.author = Developer(**kwargs)  #this will become an instance of Developer
@@ -141,6 +141,7 @@ class Commit(object):
             return None
     
     def calculate_wait_plus2(self):
+        yesterday = datetime(date.today().year, date.today().month, date.today().day-1, 23, 59, 59)
         if self.merged and self.patch_sets[self.nbr_patch_sets].reviews != {}:
             #commit was merged with reviews
             try:
@@ -160,20 +161,21 @@ class Commit(object):
             #commit is not merged, but all the reviews are positive
             if self.all_positive_reviews == True:
                 # always deduct 1 day as we only run the counts for complete days
-                review = Review(granted=datetime.today() - timedelta(days=1))
+                review = Review(granted=yesterday)
             else:
                 #commit is not yet ready to be merged, ignore for stats
                 review = Review(granted=self.last_updated_on)
         self.waiting_plus2 = review
     
     def calculate_wait_first_review(self):
+        yesterday = datetime(date.today().year, date.today().month, date.today().day-1, 23, 59, 59)
         if self.patch_sets[self.nbr_patch_sets].reviews == {}:
             if self.merged:
                 review = Review(granted=self.last_updated_on)
             else:
                 #there are no reviews and the commit is not merged
                 # always deduct 1 day as we only run the counts for complete days
-                review = Review(granted=datetime.today() - timedelta(days=1))
+                review = Review(granted=yesterday)
         else:
             review = self.get_first_review()
         
