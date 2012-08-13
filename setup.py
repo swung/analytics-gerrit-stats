@@ -1,6 +1,6 @@
 #!python
 # -*- coding: utf-8 -*-
-import sys, os, re
+import re
 from os.path import dirname, abspath, join
 from setuptools import setup, find_packages
 
@@ -28,7 +28,7 @@ setup(
     packages         = find_packages(),
     entry_points     = { 'console_scripts':['gerrit-stats = gerritstats:main'] },
 	install_requires = [
-		"MySQL-python",
+		'MySQL-python','paramiko','pycrypto','argparse','yaml',
 	],
 
     # install_requires = [
