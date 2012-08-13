@@ -19,18 +19,16 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
-import os
 import sys
 import argparse
 import MySQLdb, MySQLdb.cursors, _mysql_exceptions
-import cPickle
 import logging
 
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 from copy import deepcopy
 
 from gerrit import Gerrit
-from commit import Review, Commit, Patchset
+from changeset import Review, Changeset, Patchset
 from sql_queries import GERRIT_CREATION_DATE, approvals_query, changes_query, patch_sets_query
 
 logger = logging.getLogger()
@@ -58,23 +56,23 @@ def init_db(my_cnf):
     return cur 
 
 
-def load_commit_data(cur, commits):
+def load_commit_data(cur, changesets):
     try:
         cur.execute(changes_query)
     except _mysql_exceptions.ProgrammingError, e:
         logging.warning('Encountered problem while running db operation: %s' % e)
         unsuccessfull_exit()
     
-    changes = cur.fetchall()
+    changesets_raw = cur.fetchall()
     logging.info('Successfully loaded commit data from database.')
-    for change in changes:
-        commit = Commit(**change)
-        commits[commit.change_id] = commit
+    for changeset in changesets_raw:
+        changeset = Changeset(**changeset)
+        changesets[changeset.change_id] = changeset
     
-    return commits
+    return changesets
 
 
-def load_review_data(cur, commits):
+def load_review_data(cur, changesets):
     try:
         cur.execute(approvals_query)
     except _mysql_exceptions.ProgrammingError, e:
@@ -87,15 +85,15 @@ def load_review_data(cur, commits):
         review = Review(**approval)
         #drop bot reviewers and drop reviews with +0 (this is a hack to make it more compatible with gerrit search quagmire)
         if review.reviewer.human == True and review.value != 0:
-            commit = commits.get(review.change_id)
-            if commit:
-                commit.patch_sets[review.patch_set_id].reviews['%s_%s' % (review.granted, review.value)] = review
+            changeset = changesets.get(review.change_id)
+            if changeset:
+                changeset.patch_sets[review.patch_set_id].reviews['%s_%s' % (review.granted, review.value)] = review
             else:
                 logging.info('Could not find a commit that belongs to change_id: %s written by %s (%s) on %s' % (review.change_id, review.reviewer.full_name, review.reviewer.account_id, review.granted))
-    return commits
+    return changesets
     
 
-def load_patch_set_data(cur, commits):
+def load_patch_set_data(cur, changesets):
     try:
         cur.execute(patch_sets_query)
     except _mysql_exceptions.ProgrammingError, e:
@@ -106,12 +104,12 @@ def load_patch_set_data(cur, commits):
     logging.info('Successfully loaded patch_sets data from database.')
     for patch_set in patch_sets:
         patch_set = Patchset(**patch_set)
-        commit = commits.get(patch_set.change_id)
-        if commit:
-            commit.patch_sets[patch_set.patch_set_id] = patch_set
+        changeset = changesets.get(patch_set.change_id)
+        if changeset:
+            changeset.patch_sets[patch_set.patch_set_id] = patch_set
         else:
             logging.info('Could not find a commit that belongs to patch_set_id: %s written by %s on %s' % (patch_set.change_id, patch_set.uploader_account_id, patch_set.created_on))
-    return commits
+    return changesets
 
 
 def create_aggregate_dataset(gerrit):
@@ -173,37 +171,37 @@ def main():
     
     start_date = GERRIT_CREATION_DATE
     yesterday = datetime(date.today().year, date.today().month, date.today().day-1, 23, 59, 59)
-    commits = {}
+    changesets = {}
     
     logging.info('Queries will span timeframe: %s - %s.' % (start_date, yesterday))
     logging.info('Queries will always run up to \'yesterday\', so that we always have counts for full days.')
 
-    commits = load_commit_data(cur, commits)
-    commits = load_patch_set_data(cur, commits)
-    commits = load_review_data(cur, commits)
+    changesets = load_commit_data(cur, changesets)
+    changesets = load_patch_set_data(cur, changesets)
+    changesets = load_review_data(cur, changesets)
     
-    for commit in commits.itervalues():
-        commit.is_all_positive_reviews()
-        commit.calculate_wait_first_review()
-        commit.calculate_wait_plus2()
-        commit.is_self_reviewed()
+    for changeset in changesets.itervalues():
+        changeset.is_all_positive_reviews()
+        changeset.calculate_wait_first_review()
+        changeset.calculate_wait_plus2()
+        changeset.is_self_reviewed()
         
-        repo = gerrit.repos.get(commit.dest_project_name)
+        repo = gerrit.repos.get(changeset.dest_project_name)
         if repo:
-            repo.increment(commit)
+            repo.increment(changeset)
         else:
-            logging.info('Repo %s does not exist, ignored repos are: %s' % (commit.dest_project_name, ','.join(gerrit.ignore_repos)))
+            logging.info('Repo %s does not exist, ignored repos are: %s' % (changeset.dest_project_name, ','.join(gerrit.ignore_repos)))
     
     logging.info('Successfully parsed commit data.')
     # create datasets that are collections of repositories
     create_aggregate_dataset(gerrit)        
     
     for repo in gerrit.repos.itervalues():
-        if repo.name == 'mediawiki':
-            dates = repo.observations.keys()
-            dates.sort()
-            for dt in dates:
-                print dt, repo.observations[dt].commit_ids
+#        if repo.name == 'mediawiki':
+#            dates = repo.observations.keys()
+#            dates.sort()
+#            for dt in dates:
+#                print dt, repo.observations[dt].commit_ids
         repo.fill_in_missing_days()
         repo.create_headings()
         repo.prune_observations()

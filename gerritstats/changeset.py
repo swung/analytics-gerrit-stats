@@ -72,7 +72,7 @@ class Developer(object):
             self.preferred_email = 'No email address'            
         
 
-class Commit(object):
+class Changeset(object):
     def __init__(self, **kwargs):
         self.created_on = kwargs.get('created_on')
         self.owner_account_id = kwargs.get('owner_account_id')
