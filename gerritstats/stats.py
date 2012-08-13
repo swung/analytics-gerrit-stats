@@ -120,6 +120,7 @@ def parse_commandline():
     parser.add_argument('--recreate', help='Delete all existing datafiles and datasources and recreate them from scratch. This needs to be done whenever a new metric is added.', action='store_true', default=False)
     parser.add_argument('--toolkit', help='Specify the visualization library you want to use. Valid choices are: dygraphs and d3.', action='store', default='d3')
     parser.add_argument('--ssh-username', help='Specify your SSH username if your username on your local box dev is different then the one you use on the remote box.', action='store', required=False)
+    parser.add_argument('--ssh-identity', help='Specify the location of your SSH private key.', action='store', required=False)
     return parser.parse_args()
 
 

@@ -63,7 +63,7 @@ class Query(object):
         ssh = paramiko.SSHClient()
         ssh.load_system_host_keys()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(self.gerrit.host, port=self.gerrit.port, username=self.gerrit.ssh_username)
+        ssh.connect(self.gerrit.host, port=self.gerrit.port, username=self.gerrit.ssh_username, key_filename=self.gerrit.ssh_identity)
         stdin, stdout, stderr = ssh.exec_command(self.query)
         data = stdout.readlines()
         try:

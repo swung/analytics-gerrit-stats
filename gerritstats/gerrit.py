@@ -50,6 +50,7 @@ class Gerrit(object):
         self.recreate = args.recreate
         self.toolkit = args.toolkit
         self.ssh_username = args.ssh_username
+        self.ssh_identity = args.ssh_identity
         self.repos = {}
         self.ignore_repos = ['test', 'private']
         self.parents = [
