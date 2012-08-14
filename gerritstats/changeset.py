@@ -93,6 +93,7 @@ class Changeset(object):
         self.waiting_plus2 = datetime(date.today().year, date.today().month, date.today().day-1, 23, 59, 59)  #wait time between first plus 1 and plus 2
         self.merge_review = None #this will become an instance of Review
         self.all_positive_reviews = None
+        self.yesterday = self.determine_yesterday()
         self.author = Developer(**kwargs)  #this will become an instance of Developer
     
     def __str__(self):
@@ -114,6 +115,11 @@ class Changeset(object):
             self.all_positive_reviews = True
         else:
             self.all_positive_reviews = False
+            
+    def determine_yesterday(self):
+        yesterday = date.today() - timedelta(days=1)
+        yesterday = datetime(yesterday.year, yesterday.month, yesterday.day, 23, 59, 59)
+        return yesterday
     
     def get_first_review_by_review_value(self, value):
         #self.reviews is an ordereddict that is sorted by timestamp, so the first hit is the oldest. 
@@ -141,7 +147,6 @@ class Changeset(object):
             return None
     
     def calculate_wait_plus2(self):
-        yesterday = datetime(date.today().year, date.today().month, date.today().day-1, 23, 59, 59)
         if self.merged and self.patch_sets[self.nbr_patch_sets].reviews != {}:
             #commit was merged with reviews
             try:
@@ -161,24 +166,25 @@ class Changeset(object):
             #commit is not merged, but all the reviews are positive
             if self.all_positive_reviews == True:
                 # always deduct 1 day as we only run the counts for complete days
-                review = Review(granted=yesterday)
+                review = Review(granted=self.yesterday)
             else:
                 #commit is not yet ready to be merged, ignore for stats
                 review = Review(granted=self.last_updated_on)
         self.waiting_plus2 = review
     
     def calculate_wait_first_review(self):
-        yesterday = datetime(date.today().year, date.today().month, date.today().day-1, 23, 59, 59)
-        if self.patch_sets[self.nbr_patch_sets].reviews == {}:
+        if self.open == True:
+            #commit has reviews but is still open 
+            review = Review(granted=self.yesterday)
+        elif self.patch_sets[self.nbr_patch_sets].reviews == {}:
             if self.merged:
                 review = Review(granted=self.last_updated_on)
             else:
                 #there are no reviews and the commit is not merged
                 # always deduct 1 day as we only run the counts for complete days
-                review = Review(granted=yesterday)
+                review = Review(granted=self.yesterday)
         else:
             review = self.get_first_review()
-        
         self.waiting_first_review = review
 
 class Patchset(object):

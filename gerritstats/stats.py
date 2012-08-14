@@ -24,7 +24,7 @@ import argparse
 import MySQLdb, MySQLdb.cursors, _mysql_exceptions
 import logging
 
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from copy import deepcopy
 
 from gerrit import Gerrit
@@ -170,7 +170,8 @@ def main():
     gerrit.fetch_repos()
     
     start_date = GERRIT_CREATION_DATE
-    yesterday = datetime(date.today().year, date.today().month, date.today().day-1, 23, 59, 59)
+    yesterday = date.today() - timedelta(days=1)
+    yesterday = datetime(yesterday.year, yesterday.month, yesterday.day, 23, 59, 59)
     changesets = {}
     
     logging.info('Queries will span timeframe: %s - %s.' % (start_date, yesterday))
@@ -181,6 +182,8 @@ def main():
     changesets = load_review_data(cur, changesets)
     
     for changeset in changesets.itervalues():
+        if changeset.change_id == 3291:
+            print 'break'
         changeset.is_all_positive_reviews()
         changeset.calculate_wait_first_review()
         changeset.calculate_wait_plus2()
