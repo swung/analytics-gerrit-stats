@@ -192,16 +192,18 @@ def main():
         else:
             logging.info('Repo %s does not exist, ignored repos are: %s' % (changeset.dest_project_name, ','.join(gerrit.ignore_repos)))
     
-    logging.info('Successfully parsed commit data.')
+    logging.info('Successfully parsed changesets data.')
     # create datasets that are collections of repositories
     create_aggregate_dataset(gerrit)        
     
     for repo in gerrit.repos.itervalues():
-#        if repo.name == 'mediawiki':
-#            dates = repo.observations.keys()
-#            dates.sort()
-#            for dt in dates:
-#                print dt, repo.observations[dt].commit_ids
+        if repo.name == 'mediawiki':
+            dt = date(2012,8,12)
+            change_ids = list(repo.observations[dt].commit_ids)
+            change_ids.sort()
+            for change_id in change_ids:
+                print change_id
+                #print dt, repo.observations[dt].commit_ids
         repo.fill_in_missing_days()
         repo.create_headings()
         repo.prune_observations()

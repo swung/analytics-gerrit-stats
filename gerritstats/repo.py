@@ -252,7 +252,7 @@ class Observation(object):
         self.commits = 0
         self.self_review = 0
         self.commit_ids = set()
-        self.ignore = ['touched', 'date', 'ignore', 'commit_ids']
+        self.ignore = ['touched', 'date', 'ignore'] #commit_ids
         for heading in repo.create_headings():
             setattr(self, heading, 0)
     
