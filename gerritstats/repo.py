@@ -112,13 +112,15 @@ class Repo(object):
     
     def daterange(self, start_date, end_date):
         dt = ((end_date - start_date).days)
-        #this happens for the waiting_plus2 measure if there are no positive reviews, then the review date is set to 
-        #the commit creation date but that will mean that the end date is before the start date. Hence a negative value
-        #here should be reset to 0.
+        #this happens for the waiting_plus2 measure if there are no positive 
+        #reviews, then the review date is set to the commit creation date but 
+        #that will mean that the end date is before the start date. Hence a 
+        #negative value here should be reset to 0.
         if dt < 0:
             dt = 0
-        elif dt > 0: 
-            dt = dt + 1 # add +1 because we want to have the iterator include the end date. 
+        elif dt > 0:
+            # add +1 because we want to have the iterator include the end date.
+            dt = dt + 1  
         for n in range(dt):
             yield start_date + timedelta(n)
     
@@ -182,30 +184,30 @@ class Repo(object):
         except AttributeError:
             return getattr(commit, metric)  
         
-    def increment_number_of_commits(self, commit):
+    def increment_number_of_changesets(self, commit):
         obs = self.observations.get(commit.created_on.date(), Observation(commit.created_on, self))
         obs.commits+=1
         if commit.self_review == True:
             obs.self_review +=1
         self.observations[obs.date] = obs
     
-    def increment(self, commit):
-        self.increment_number_of_commits(commit)
-        if commit.status == 'A':
+    def increment(self, changeset):
+        self.increment_number_of_changesets(changeset)
+        if changeset.status == 'A':
             return
         for metric in self.metrics:
-            start_date = self.get_review_start_date(commit, metric)
-            end_date = self.get_review_end_date(commit, metric)
+            start_date = self.get_review_start_date(changeset, metric)
+            end_date = self.get_review_end_date(changeset, metric)
             
             for date in self.daterange(start_date, end_date):
                 obs = self.observations.get(date.date(), Observation(date.date(), self))
-                obs.commit_ids.add(commit.change_id)
+                obs.changeset_ids.add(changeset.change_id)
                 for heading in product([metric], self.suffixes):
                     heading = self.merge_keys(heading[0], heading[1])
                     value = getattr(obs, heading)
-                    if heading.endswith('staff') and commit.author.staff == True:
+                    if heading.endswith('staff') and changeset.author.staff == True:
                         value+=1
-                    elif heading.endswith('volunteer') and commit.author.staff == False:
+                    elif heading.endswith('volunteer') and changeset.author.staff == False:
                         value+=1
                     elif heading.endswith('total'):
                         value+=1
@@ -251,8 +253,8 @@ class Observation(object):
         self.date = self.convert_to_date(date)
         self.commits = 0
         self.self_review = 0
-        self.commit_ids = set()
-        self.ignore = ['touched', 'date', 'ignore'] #commit_ids
+        self.changeset_ids = set()
+        self.ignore = ['touched', 'date', 'ignore'] #changeset_ids
         for heading in repo.create_headings():
             setattr(self, heading, 0)
     

@@ -73,6 +73,10 @@ class Developer(object):
         
 
 class Changeset(object):
+    '''
+    A changeset can contain one or more patchsets and each patchset can contain 
+    0 or more reviews.
+    '''
     def __init__(self, **kwargs):
         self.created_on = kwargs.get('created_on')
         self.owner_account_id = kwargs.get('owner_account_id')
@@ -138,10 +142,13 @@ class Changeset(object):
                 #commit was merged but there was no review
                 self.merge_review = None
         
-    def get_first_review(self):
+    def get_review(self, review_age):
+        '''
+        Valid values for review_age are min and max.
+        '''
         dates = self.patch_sets[self.nbr_patch_sets].reviews.keys()
         try:
-            first_date = min(dates)
+            first_date = review_age(dates)
             return self.patch_sets[self.nbr_patch_sets].reviews.get(first_date)
         except ValueError:
             return None
@@ -184,7 +191,7 @@ class Changeset(object):
                 # always deduct 1 day as we only run the counts for complete days
                 review = Review(granted=self.yesterday)
         else:
-            review = self.get_first_review()
+            review = self.get_review(min)
         self.waiting_first_review = review
 
 class Patchset(object):

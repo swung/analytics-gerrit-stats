@@ -61,9 +61,13 @@ class Query(object):
         
     def run_gerrit(self):
         ssh = paramiko.SSHClient()
-        ssh.load_system_host_keys()
+        #ssh.load_system_host_keys()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(self.gerrit.host, port=self.gerrit.port, username=self.gerrit.ssh_username, key_filename=self.gerrit.ssh_identity)
+        ssh.connect(self.gerrit.host, port=self.gerrit.port, 
+                    username=self.gerrit.ssh_username, 
+                    key_filename=self.gerrit.ssh_identity, 
+                    password=self.gerrit.ssh_password,
+                    allow_agent=False)
         stdin, stdout, stderr = ssh.exec_command(self.query)
         data = stdout.readlines()
         try:

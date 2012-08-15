@@ -64,7 +64,7 @@ def load_commit_data(cur, changesets):
         unsuccessfull_exit()
     
     changesets_raw = cur.fetchall()
-    logging.info('Successfully loaded commit data from database.')
+    logging.info('Successfully loaded changeset data from database.')
     for changeset in changesets_raw:
         changeset = Changeset(**changeset)
         changesets[changeset.change_id] = changeset
@@ -145,6 +145,7 @@ def parse_commandline():
     parser.add_argument('--toolkit', help='Specify the visualization library you want to use. Valid choices are: dygraphs and d3.', action='store', default='d3')
     parser.add_argument('--ssh-username', help='Specify your SSH username if your username on your local box dev is different then the one you use on the remote box.', action='store', required=False)
     parser.add_argument('--ssh-identity', help='Specify the location of your SSH private key.', action='store', required=False)
+    parser.add_argument('--ssh-password', help='Specify the password of the SSH private key (optional)', action='store', required=False)
     return parser.parse_args()
 
 
@@ -202,7 +203,7 @@ def main():
     for repo in gerrit.repos.itervalues():
         if repo.name == 'mediawiki':
             dt = date(2012,8,12)
-            change_ids = list(repo.observations[dt].commit_ids)
+            change_ids = list(repo.observations[dt].changeset_ids)
             change_ids.sort()
             for change_id in change_ids:
                 print change_id

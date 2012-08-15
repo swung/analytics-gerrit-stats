@@ -50,6 +50,7 @@ class Gerrit(object):
         self.toolkit = args.toolkit
         self.ssh_username = args.ssh_username
         self.ssh_identity = args.ssh_identity
+        self.ssh_password = args.ssh_password
         self.repos = {}
         self.ignore_repos = ['test', 'private']
         self.parents = [
@@ -99,7 +100,7 @@ class Gerrit(object):
         if path.startswith('~'):
             path = os.path.expanduser(path)
         if os.path.isabs(path) == False:
-            logging.warning('%s is not an absolute path, please specify an absolute path.' % path)
+            logging.warning('%s is not an absolute path, please specify an existing absolute path.' % path)
             logging.error('Leaving gerrit-stats unsuccesfully.')
             sys.exit(-1)
         elif os.path.exists(path) == False:
