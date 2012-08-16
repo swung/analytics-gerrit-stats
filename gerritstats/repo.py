@@ -193,8 +193,8 @@ class Repo(object):
     
     def increment(self, changeset):
         self.increment_number_of_changesets(changeset)
-#        if changeset.status == 'A':
-#            return
+        if changeset.status == 'A':
+            return
         for metric in self.metrics:
             start_date = self.get_review_start_date(changeset, metric)
             end_date = self.get_review_end_date(changeset, metric)
