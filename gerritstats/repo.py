@@ -118,7 +118,7 @@ class Repo(object):
         #negative value here should be reset to 0.
         if dt < 0:
             dt = 0
-        elif dt > 0:
+        elif dt >= 0:
             # add +1 because we want to have the iterator include the end date.
             dt = dt + 1  
         for n in range(dt):

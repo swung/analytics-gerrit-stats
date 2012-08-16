@@ -131,7 +131,7 @@ class Changeset(object):
     def get_first_review_by_review_value(self, value):
         #self.reviews is an ordereddict that is sorted by timestamp, so the first hit is the oldest. 
         for review in self.patch_sets[self.nbr_patch_sets].reviews.itervalues():
-            if review.value == value and review.reviewer.human == True:
+            if review.value == value and review.reviewer.human == True and review.category_id == 'CRVW':
                 return review
         #this commit does not have a review with value 'value', return None
         return None
@@ -242,10 +242,11 @@ class Review(object):
         self.value = kwargs.get('value')
         self.account_id = kwargs.get('account_id')
         self.patch_set_id = kwargs.get('patch_set_id')
+        self.category_id = kwargs.get('category_id')
         self.reviewer = Developer(**kwargs)
 
     def __str__(self):
-        return '%s:%s:%s' % (self.change_id, self.patch_set_id, self.value)
+        return '%s:%s:%s:%s' % (self.change_id, self.patch_set_id, self.category_id, self.value)
 
 def main():
     pass

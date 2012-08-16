@@ -20,10 +20,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
 import json
-from datetime import datetime, date 
+from datetime import datetime, date
+import pytz 
 
 def main():
-    fh = open('benchmark2.json', 'r')
+    fh = open('benchmark.json', 'r')
     data = []
     for line in fh:
         data.append(line)
@@ -34,15 +35,29 @@ def main():
     changesets = json.loads(data)
     
     change_ids=[]
+    
+    local = pytz.timezone ("America/Los_Angeles")
     for changeset in changesets:
-        created_on = datetime.fromtimestamp(changeset['createdOn'])
-        if created_on.date() != date.today():
-            if changeset['project'].startswith('mediawiki') == True:
-                change_ids.append(int(changeset['number']))
+        try:
+            created_on = datetime.fromtimestamp(changeset['createdOn'])
+            local_dt = local.localize(created_on, is_dst=None)
+            utc_dt = local_dt.astimezone (pytz.utc)
+            
+            if int(changeset['number']) == 14052:
+                print 'break'
+            
+            if utc_dt.date() != date.today():
+                if changeset['project'].startswith('mediawiki') == True:
+                    change_ids.append(int(changeset['number']))
+        except KeyError:
+            pass
     
     change_ids.sort()
+    fh = open('backlog_gerrit.txt', 'w')
     for change_id in change_ids:
         print change_id
+        fh.write('%s\n' % change_id)
     
+    fh.close()
 if __name__ == '__main__':
     main()

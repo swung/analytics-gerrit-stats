@@ -84,10 +84,10 @@ def load_review_data(cur, changesets):
     for approval in approvals:
         review = Review(**approval)
         #drop bot reviewers and drop reviews with +0 (this is a hack to make it more compatible with gerrit search quagmire)
-        if review.reviewer.human == True and review.value != 0:
+        if review.reviewer.human == True:
             changeset = changesets.get(review.change_id)
             if changeset:
-                changeset.patch_sets[review.patch_set_id].reviews['%s_%s' % (review.granted, review.value)] = review
+                changeset.patch_sets[review.patch_set_id].reviews['%s_%s_%s' % (review.granted, review.category_id, review.value)] = review
             else:
                 logging.info('Could not find a commit that belongs to change_id: %s written by %s (%s) on %s' % (review.change_id, review.reviewer.full_name, review.reviewer.account_id, review.granted))
     return changesets
@@ -183,7 +183,7 @@ def main():
     changesets = load_review_data(cur, changesets)
     
     for changeset in changesets.itervalues():
-        if changeset.change_id == 8438:
+        if changeset.change_id == 19379:
             print 'break'
         changeset.is_all_positive_reviews()
         changeset.calculate_wait_first_review()
@@ -202,12 +202,13 @@ def main():
     
     for repo in gerrit.repos.itervalues():
         if repo.name == 'mediawiki':
-            dt = date(2012,8,14)
-            change_ids = list(repo.observations[dt].changeset_ids)
+            change_ids = list(repo.observations[yesterday.date()].changeset_ids)
             change_ids.sort()
+            fh = open('/Users/diederik/Development/gerrit-stats/gerritstats/tests/backlog_gerrit-stats.txt','w')
             for change_id in change_ids:
-                print change_id
-                #print dt, repo.observations[dt].commit_ids
+                #print change_id
+                fh.write('%s\n' % change_id)
+            fh.close()
         repo.fill_in_missing_days()
         repo.create_headings()
         repo.prune_observations()
