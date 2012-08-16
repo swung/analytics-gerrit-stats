@@ -183,7 +183,7 @@ def main():
     changesets = load_review_data(cur, changesets)
     
     for changeset in changesets.itervalues():
-        if changeset.change_id == 3291:
+        if changeset.change_id == 8438:
             print 'break'
         changeset.is_all_positive_reviews()
         changeset.calculate_wait_first_review()
@@ -202,7 +202,7 @@ def main():
     
     for repo in gerrit.repos.itervalues():
         if repo.name == 'mediawiki':
-            dt = date(2012,8,12)
+            dt = date(2012,8,14)
             change_ids = list(repo.observations[dt].changeset_ids)
             change_ids.sort()
             for change_id in change_ids:

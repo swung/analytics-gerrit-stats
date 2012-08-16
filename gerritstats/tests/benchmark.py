@@ -23,15 +23,22 @@ import json
 from datetime import datetime, date 
 
 def main():
-    fh = open('benchmark.json', 'r')
-    changesets = json.load(fh)
+    fh = open('benchmark2.json', 'r')
+    data = []
+    for line in fh:
+        data.append(line)
     fh.close()
+    
+    data = ','.join(data)
+    data = '%s%s%s' % ('[', data, ']')
+    changesets = json.loads(data)
     
     change_ids=[]
     for changeset in changesets:
         created_on = datetime.fromtimestamp(changeset['createdOn'])
         if created_on.date() != date.today():
-            change_ids.append(int(changeset['number']))
+            if changeset['project'].startswith('mediawiki') == True:
+                change_ids.append(int(changeset['number']))
     
     change_ids.sort()
     for change_id in change_ids:

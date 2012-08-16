@@ -193,15 +193,16 @@ class Repo(object):
     
     def increment(self, changeset):
         self.increment_number_of_changesets(changeset)
-        if changeset.status == 'A':
-            return
+#        if changeset.status == 'A':
+#            return
         for metric in self.metrics:
             start_date = self.get_review_start_date(changeset, metric)
             end_date = self.get_review_end_date(changeset, metric)
             
             for date in self.daterange(start_date, end_date):
                 obs = self.observations.get(date.date(), Observation(date.date(), self))
-                obs.changeset_ids.add(changeset.change_id)
+                if metric == 'waiting_first_review':
+                    obs.changeset_ids.add(changeset.change_id)
                 for heading in product([metric], self.suffixes):
                     heading = self.merge_keys(heading[0], heading[1])
                     value = getattr(obs, heading)
