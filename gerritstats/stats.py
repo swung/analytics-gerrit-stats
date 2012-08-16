@@ -201,14 +201,14 @@ def main():
     create_aggregate_dataset(gerrit)        
     
     for repo in gerrit.repos.itervalues():
-        if repo.name == 'mediawiki':
-            change_ids = list(repo.observations[yesterday.date()].changeset_ids)
-            change_ids.sort()
-            fh = open('/Users/diederik/Development/gerrit-stats/gerritstats/tests/backlog_gerrit-stats.txt','w')
-            for change_id in change_ids:
-                print change_id
-                fh.write('%s\n' % change_id)
-            fh.close()
+#        if repo.name == 'mediawiki':
+#            change_ids = list(repo.observations[yesterday.date()].changeset_ids)
+#            change_ids.sort()
+#            fh = open('/Users/diederik/Development/gerrit-stats/gerritstats/tests/backlog_gerrit-stats.txt','w')
+#            for change_id in change_ids:
+#                print change_id
+#                fh.write('%s\n' % change_id)
+#            fh.close()
         repo.fill_in_missing_days()
         repo.create_headings()
         repo.prune_observations()
