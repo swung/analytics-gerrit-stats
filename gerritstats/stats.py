@@ -183,8 +183,8 @@ def main():
     changesets = load_review_data(cur, changesets)
     
     for changeset in changesets.itervalues():
-        if changeset.change_id == 19379:
-            print 'break'
+#        if changeset.change_id == 19379:
+#            print 'break'
         changeset.is_all_positive_reviews()
         changeset.calculate_wait_first_review()
         changeset.calculate_wait_plus2()
@@ -204,11 +204,11 @@ def main():
         if repo.name == 'mediawiki':
             change_ids = list(repo.observations[yesterday.date()].changeset_ids)
             change_ids.sort()
-            fh = open('/Users/diederik/Development/gerrit-stats/gerritstats/tests/backlog_gerrit-stats.txt','w')
-            for change_id in change_ids:
-                #print change_id
-                fh.write('%s\n' % change_id)
-            fh.close()
+#            fh = open('/Users/diederik/Development/gerrit-stats/gerritstats/tests/backlog_gerrit-stats.txt','w')
+#            for change_id in change_ids:
+#                print change_id
+#                fh.write('%s\n' % change_id)
+#            fh.close()
         repo.fill_in_missing_days()
         repo.create_headings()
         repo.prune_observations()

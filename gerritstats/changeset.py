@@ -183,9 +183,6 @@ class Changeset(object):
         self.waiting_plus2 = review
     
     def calculate_wait_first_review(self):
-        #if self.open == True:
-        #    review = Review(granted=self.yesterday)
-        #else:
         values = [-2, -1, 1]
         reviews = {}
         for value in values:
@@ -202,22 +199,7 @@ class Changeset(object):
             else: 
                 review = Review(granted=self.yesterday)
         self.waiting_first_review = review
-            
-    
-#    def calculate_wait_first_review(self):
-#        if self.open == True:
-#            #commit has reviews but is still open 
-#            review = Review(granted=self.yesterday)
-#        elif self.patch_sets[self.nbr_patch_sets].reviews == {}:
-#            if self.merged:
-#                review = Review(granted=self.last_updated_on)
-#            else:
-#                #there are no reviews and the commit is not merged
-#                # always deduct 1 day as we only run the counts for complete days
-#                review = Review(granted=self.yesterday)
-#        else:
-#            review = self.get_review(min)
-#        self.waiting_first_review = review
+
 
 class Patchset(object):
     def __init__(self, **kwargs):
@@ -234,6 +216,7 @@ class Patchset(object):
         self.account_id = kwargs.get('account_id')
         self.category_id = kwargs.get('category_id')
         self.reviews = OrderedDict()
+ 
     
 class Review(object):
     def __init__(self, **kwargs):
