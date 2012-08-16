@@ -111,16 +111,16 @@ class Repo(object):
                     pass
     
     def daterange(self, start_date, end_date):
-        dt = ((end_date - start_date).days)
+        if end_date.year == start_date.year and end_date.month == start_date.month and end_date.day == start_date.day: 
+            dt = ((end_date - start_date).days)
+        else:
+            dt = ((end_date - start_date).days) + 1
         #this happens for the waiting_plus2 measure if there are no positive 
         #reviews, then the review date is set to the commit creation date but 
         #that will mean that the end date is before the start date. Hence a 
         #negative value here should be reset to 0.
         if dt < 0:
             dt = 0
-        elif dt >= 0:
-            # add +1 because we want to have the iterator include the end date.
-            dt = dt + 1  
         for n in range(dt):
             yield start_date + timedelta(n)
     
