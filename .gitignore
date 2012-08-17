@@ -23,3 +23,7 @@ tmp/
 var/
 
 data/
+
+.project
+.pydevproject
+.settings/
