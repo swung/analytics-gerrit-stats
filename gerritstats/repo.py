@@ -110,9 +110,12 @@ class Repo(object):
                 except OSError:
                     pass
     
-    def daterange(self, start_date, end_date):
-        if end_date.year == start_date.year and end_date.month == start_date.month and end_date.day == start_date.day: 
-            dt = ((end_date - start_date).days)
+    def daterange(self, start_date, end_date, merged=True):
+        if end_date.year == start_date.year and end_date.month == start_date.month and end_date.day == start_date.day:
+            if merged:
+                dt = 0
+            else: 
+                dt = 1
         else:
             dt = ((end_date - start_date).days) + 1
         #this happens for the waiting_plus2 measure if there are no positive 
@@ -199,7 +202,7 @@ class Repo(object):
             start_date = self.get_review_start_date(changeset, metric)
             end_date = self.get_review_end_date(changeset, metric)
             
-            for date in self.daterange(start_date, end_date):
+            for date in self.daterange(start_date, end_date, changeset.merged):
                 obs = self.observations.get(date.date(), Observation(date.date(), self))
                 if metric == 'waiting_first_review':
                     obs.changeset_ids.add(changeset.change_id)

@@ -1,25 +1,4 @@
 Change ids present in gerrit search ui but not gerrit-stats:
-19379
-19717
-19725
-19728
-19731
-19734
-19743
-19745
-19746
-19756
-19763
-19767
-19768
-19770
-19771
-19775
-19784
-19789
-19933
-19936
-19946
 Change ids present in gerrit-stats but not in gerrit search ui:
 14052
 14054
@@ -28,8 +7,11 @@ Change ids present in gerrit-stats but not in gerrit search ui:
 16903
 17008
 17809
+18625
 19204
 19205
 19216
 19236
 19395
+19428
+19935
