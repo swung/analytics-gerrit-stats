@@ -19,6 +19,10 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
+'''
+Simple script to compare the output of gerrit-stats versus the output of 
+the regular gerrit search interface. For debugging purposes only.
+'''
 
 def read_file(filename):
     fh = open(filename,'r')
@@ -60,5 +64,7 @@ def main():
         fh.write('%s\n' % diff)
 
     fh.close()
+
+
 if __name__ == '__main__':
     main()

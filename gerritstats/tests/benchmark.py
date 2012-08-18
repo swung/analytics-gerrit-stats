@@ -19,9 +19,15 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
+'''
+Fetch comparison results from gerrit search interface. For debugging purposes
+only. 
+'''
+
 import json
-from datetime import datetime, date
 import pytz 
+from datetime import datetime, date
+
 
 def main():
     fh = open('benchmark.json', 'r')
@@ -59,5 +65,7 @@ def main():
         fh.write('%s\n' % change_id)
     
     fh.close()
+
+
 if __name__ == '__main__':
     main()

@@ -1,5 +1,5 @@
 #general config paramaters
-gerrit_creation_date: 2011-09-07
+creation_date: 2011-09-07
 
 
 # server parameters
@@ -7,32 +7,29 @@ host: gerrit.wikimedia.org
 port: 29418
 
 # Gerrit repository settings
-ignore_repos: # ignore gerrit projects that contain either of the following strings
-	- test
-	- private
+# ignore gerrit projects that contain either of the following strings
+ignore_repos:
+    - test
+    - private
 
 parents:
-	- parent: mediawiki
-	  description: Aggregate statistics for the entire mediawiki code base (core, extensions, tools and packages.)
-
-	- parent: mediawiki/all_extensions
-	  description: Aggregate statistics for all extensions.
-
-	- parent: mediawiki/wmf_extensions
-	  description: Aggregate statistics for extensions run by WMF.
-
-
-
-#             dict(name='mediawiki',description='Aggregate statistics for the entire mediawiki code base (core, extensions, tools and packages.'),
-#             dict(name='mediawiki/all_extensions',description='Aggregate statistics for all extensions.'),
-#             dict(name='mediawiki/wmf_extensions', description='Aggregate statistics for extensions run by WMF.'),
-#             dict(name='mediawiki/core_wmf_extensions', description='Aggregate statistics for extensions run by WMF and Mediawiki Core.'),
-#             dict(name='operations',description='Aggregate statistics for all operations repositories.'),
-#             dict(name='analytics',description='Aggregate statistics for all analytics repositories.'),
-#             dict(name='integration',description='Aggregate statistics for all integration repositories.'),
-#             dict(name='labs',description='Aggregate statistics for all labs repositories.'),
-#             dict(name='translatewiki',description='Aggregate statistics for all translatewiki repositories.'),
-#             dict(name='wikimedia',description='Aggregate statistics for all wikimedia repositories.'),
-#         ]
-
-# GERRIT_CREATION_DATE = date(2011,9,7)
+    - name: mediawiki
+      description: 'Aggregate statistics for the entire mediawiki code base (core, extensions, tools and packages.)'
+    - name: mediawiki/all_extensions
+      description: Aggregate statistics for all extensions.
+    - name: mediawiki/wmf_extensions
+      description: Aggregate statistics for extensions run by WMF.
+    - name: mediawiki/core_wmf_extensions
+      description: Aggregate statistics for extensions run by WMF and Mediawiki Core.
+    - name: operations
+      description: Aggregate statistics for all operations repositories.
+    - name: analytics
+      description: Aggregate statistics for all analytics repositories.
+    - name: integration
+      description: Aggregate statistics for all integration repositories.
+    - name: labs
+      description: Aggregate statistics for all labs repositories.
+    - name: translatewiki
+      description: Aggregate statistics for all translatewiki repositories.
+    - name: wikimedia
+      description: Aggregate statistics for all wikimedia repositories.

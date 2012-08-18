@@ -19,31 +19,27 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
-from datetime import date
-
-GERRIT_CREATION_DATE = date(2011,9,7)
-
 changes_query = '''
-                SELECT 
+                SELECT
                     *
                 FROM
                     changes
-                INNER JOIN 
+                INNER JOIN
                     accounts
                 ON
                     changes.owner_account_id=accounts.account_id
                 ORDER BY
                     changes.created_on;
                 '''
-    
+
 approvals_query = '''
                 SELECT
                     *
-                FROM 
+                FROM
                     patch_set_approvals
                 INNER JOIN
                     accounts
-                ON 
+                ON
                     patch_set_approvals.account_id=accounts.account_id
                 ORDER BY
                     patch_set_approvals.granted;
@@ -52,12 +48,12 @@ approvals_query = '''
 patch_sets_query = '''
                 SELECT
                     *
-                FROM 
+                FROM
                     patch_sets
                 LEFT JOIN
                     patch_set_approvals
-                ON 
-                    patch_sets.change_id=patch_set_approvals.change_id 
-                AND 
+                ON
+                    patch_sets.change_id=patch_set_approvals.change_id
+                AND
                     patch_sets.patch_set_id=patch_set_approvals.patch_set_id;
                 '''
