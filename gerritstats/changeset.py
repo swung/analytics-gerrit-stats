@@ -19,8 +19,11 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
+from copy import deepcopy
+
 from utils import determine_yesterday
 from developer import Developer
+
 try:
     from collections import OrderedDict
 except:
@@ -31,6 +34,42 @@ class Changeset(object):
     '''
     A changeset can contain one or more patchsets and each patchset can contain
     0 or more reviews.
+    
+    @param created_on: timestamp when this changeset was created
+    @type: datetime
+    
+    @param owner_account_id: id of developer, this can be used to retrieve 
+    instance of @Developer
+    @type: integer
+    
+    @param dest_project_name: name of the project in Gerrit
+    @type: string
+    
+    @param dest_branch_name: name of the remote branch in which the changeset
+    was committed
+    @type: string
+    
+    @param change_id: unique id of the changeset
+    @type: integer
+    
+    @param last_updated_on: timestamp of the last action on this changeset
+    @type: datetime
+    
+    @param change_key: internal Gerrit change key
+    @type: string
+    
+    @param subject: subject of the changeset
+    @type: string 
+    
+    @param nbr_patch_sets: total number of patchsets that belong to this
+    changeset
+    @type: integer
+    
+    @param status: status of the changeset. Capital letters are final statuses,
+    like 'M' for merged and 'A' for abandoned. Lower case status can change like
+    'd' for draft. 
+    @type: string
+    
     '''
     def __init__(self, **kwargs):
         self.created_on = kwargs.get('created_on')
@@ -55,8 +94,7 @@ class Changeset(object):
         self.waiting_plus2 = self.yesterday  # wait time between first plus 1 and plus 2
         self.merge_review = None  # this will become an instance of Review
         self.all_positive_reviews = None
-        self.author = Developer(
-            **kwargs)  # this will become an instance of Developer
+        self.author = Developer(**kwargs)  # this will become an instance of Developer
 
     def __str__(self):
         return '%s:%s' % (self.change_id, self.subject)
@@ -90,7 +128,7 @@ class Changeset(object):
         '''
         for review in self.patch_sets[self.nbr_patch_sets].reviews.itervalues():
             if review.value == value and review.reviewer.human is True and review.category_id == 'CRVW':
-                return review
+                return deepcopy(review)
         #this commit does not have a review with value 'value', return None
         return None
 
@@ -129,6 +167,8 @@ class Changeset(object):
         elif self.merged and self.patch_sets[self.nbr_patch_sets].reviews == {}:
             #commit was merged but there were no reviews
             #second guess the merge date by using last_updated_on field
+            #this means that rerunning gerrit-stats over time can change the
+            #count as this number is not set in stone. 
             review = Review(granted=self.last_updated_on)
         else:
             #commit is not merged, but all the reviews are positive
@@ -166,7 +206,8 @@ class Patchset(object):
     @param revison: the git reference to a commit
     @type revison: string
 
-    @param uploader_account_id: the id of the developer who uploaded the patchset
+    @param uploader_account_id: the id of the developer who uploaded the 
+    patchset
     @type: integer
 
     @param created_on: an instance of datetime.datetime when the @patchset was
@@ -182,7 +223,8 @@ class Patchset(object):
     @param draft: Flag to indicate whether patchset is a draft or not.
     @type draft: string
 
-    @param change_open: Flag to indicate whether the patchset is still open or not
+    @param change_open: Flag to indicate whether the patchset is still open or 
+    not.
     @type change_open: string
 
     @param change_sort_key: a key that assists Gerrit in sorting
@@ -202,10 +244,6 @@ class Patchset(object):
         self.change_open = kwargs.get('change_open')
         self.change_sort_key = kwargs.get('change_sort_key')
         self.reviews = OrderedDict()
-        #self.account_id = kwargs.get('account_id')
-        #self.category_id = kwargs.get('category_id')
-        #self.value = kwargs.get('value')
-        #self.granted = kwargs.get('granted')
 
 
 class Review(object):
@@ -216,10 +254,12 @@ class Review(object):
     @param change_id: the id of the changeset
     @param type: int
 
-    @param granted: an instance of datetime.datetime of when the review was made.
+    @param granted: an instance of datetime.datetime of when the review was 
+    made.
     @type granted: datetime.datetime
 
-    @param value: how the review was scored, potential values are: -2, -1, 0, 1, 2
+    @param value: how the review was scored, potential values are: -2, -1, 0, 1,
+    2.
     @type value: integer
 
     @param account_id: the id of the developer who reviewed this patchset.
@@ -241,4 +281,5 @@ class Review(object):
         self.reviewer = Developer(**kwargs)
 
     def __str__(self):
-        return '%s:%s:%s:%s' % (self.change_id, self.patch_set_id, self.category_id, self.value)
+        return '%s:%s:%s:%s' % (self.change_id, self.patch_set_id,
+                                self.category_id, self.value)

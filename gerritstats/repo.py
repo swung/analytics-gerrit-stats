@@ -136,7 +136,6 @@ class Repo(object):
         last_date = dates[-1]
         if last_date.year == today.year and last_date.month == today.month and last_date.day == today.day:
             dates.pop(dates.index(last_date))
-            #print 'today removed form dataset: %s ' % self.name
 
         for date in dates:
             observation = self.observations.get(date)
@@ -171,10 +170,12 @@ class Repo(object):
                 dt = 1
         else:
             dt = ((end_date - start_date).days) + 1
-        #this happens for the waiting_plus2 measure if there are no positive
-        #reviews, then the review date is set to the commit creation date but
-        #that will mean that the end date is before the start date. Hence a
-        #negative value here should be reset to 0.
+        '''
+        this happens for the waiting_plus2 measure if there are no positive
+        reviews, then the review date is set to the commit creation date but
+        that will mean that the end date is before the start date. Hence a
+        negative value here should be reset to 0.
+        '''
         if dt < 0:
             dt = 0
         for n in range(dt):

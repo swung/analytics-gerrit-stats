@@ -195,8 +195,6 @@ def main():
     changesets = load_review_data(cur, changesets)
 
     for changeset in changesets.itervalues():
-        if changeset.change_id == 19717:
-            print 'break'
         changeset.is_all_positive_reviews()
         changeset.calculate_wait_first_review()
         changeset.calculate_wait_plus2()
