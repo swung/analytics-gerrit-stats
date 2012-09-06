@@ -45,7 +45,7 @@ class Gerrit(object):
     '''
     def __init__(self, args, settings):
         self.dataset = args.datasets
-        self.my_cnf = args.config
+        self.my_cnf = args.sql
         self.csv_location, self.yaml_location = self.init_locations()
         self.toolkit = args.toolkit
         self.ssh_username = args.ssh_username
@@ -69,11 +69,19 @@ class Gerrit(object):
         ssh = paramiko.SSHClient()
         #ssh.load_system_host_keys()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(self.host, port=self.port,
+        try:
+            ssh.connect(self.host, port=self.port,
                     username=self.ssh_username,
                     key_filename=self.ssh_identity,
                     password=self.ssh_password,
                     allow_agent=False)
+        except paramiko.PasswordRequiredException, e:
+            logging.warning('Please specify on the command line the ssh-password parameter correctly.')
+            unsuccessful_exit()
+        except Exception, e:
+            logging.warning('Encountered error:\n %s' % e)
+            unsuccessful_exit()
+
         stdin, stdout, stderr = ssh.exec_command(query)
         data = stdout.readlines()
         try:
