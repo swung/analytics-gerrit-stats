@@ -156,7 +156,7 @@ def merge(parent_repo, repo):
 def parse_commandline():
     parser = argparse.ArgumentParser(description='Welcome to gerrit-stats. The mysql credentials should be stored in the .my.cnf file. By default, this file is read from the user\'s home directory. You can specify an alternative location using the --config option.')
     parser.add_argument('--sql', help='Specify the absolute path to tell gerrit-stats where it can find the MySQL my.cnf file.', action='store', required=False, default='~/.my.cnf')
-    parser.add_argument('--settings', help='Specify the absolute path to the file settings.yaml that contains gerrit-stats settings.', action='store', required=False, default=os.getcwd())
+    parser.add_argument('--settings', help='Specify the absolute path to the file settings.yaml that contains gerrit-stats settings.', action='store', required=False, default=os.path.join(os.getcwd(), 'settings.yaml'))
     parser.add_argument('--datasets', help='Specify the absolute path to store the gerrit-stats datasets.', required=True)
     parser.add_argument('--toolkit', help='Specify the visualization library you want to use. Valid choices are: dygraphs and d3.', action='store', default='d3')
     parser.add_argument('--ssh-username', help='Specify your SSH username if your username on your local box dev is different then the one you use on the remote box.', action='store', required=False)
@@ -168,12 +168,10 @@ def parse_commandline():
 
 def load_settings(args):
     try:
-        path = os.path.join(args.settings, 'settings.yaml')
-        fh = open(path, 'r')
+        fh = open(args.settings, 'r')
         settings = load(fh, Loader=Loader)
         fh.close()
     except IOError:
-        fh.close()
         logging.error('Cannot find file %s, please make sure that you specify the correct absolute path on the commandline.' % path)
         unsuccessful_exit()
     except Exception, e:
