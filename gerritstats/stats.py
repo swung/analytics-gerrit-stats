@@ -171,12 +171,14 @@ def load_settings(args):
         path = os.path.join(args.settings, 'settings.yaml')
         fh = open(path, 'r')
         settings = load(fh, Loader=Loader)
+        fh.close()
     except IOError:
         fh.close()
         logging.error('Cannot find file %s, please make sure that you specify the correct absolute path on the commandline.' % path)
         unsuccessful_exit()
-    fh.close()
-        
+    except Exception, e:
+	logging.error('Encountered error:\n%s' % e)
+	unsuccessful_exit()
     return settings
 
 
