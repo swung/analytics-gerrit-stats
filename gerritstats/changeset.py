@@ -236,7 +236,7 @@ class Patchset(object):
     '''
     def __init__(self, **kwargs):
         self.revision = kwargs.get('revision')
-        self.uploader_account_id = kwargs.get('uploader_acoount_id')
+        self.uploader_account_id = kwargs.get('uploader_account_id')
         self.created_on = kwargs.get('created_on')
         self.change_id = kwargs.get('change_id')
         self.patch_set_id = kwargs.get('patch_set_id')
